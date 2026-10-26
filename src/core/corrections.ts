@@ -1,4 +1,4 @@
-import type { Corrections, EntryOverride, Gender, Person } from './types'
+import type { Corrections, Cup, EntryOverride, Gender, Person } from './types'
 import { pairKey } from './matching'
 
 export function emptyCorrections(): Corrections {
@@ -36,21 +36,33 @@ function removePairs(list: [string, string][], drop: (a: string, b: string) => b
   return list.filter(([a, b]) => !drop(a, b))
 }
 
-/** Writes the same name, birth year and gender to all given entries. */
-function setCanonical(c: Corrections, keys: string[], values: CanonicalValues): Corrections {
-  const overrides = { ...c.overrides }
-  for (const k of keys) overrides[k] = { ...overrides[k], ...values }
-  return { ...c, overrides }
+/**
+ * Writes the same name, birth year and gender to all given entries.
+ * Only fields that differ from the file are stored, so untouched entries stay unmarked.
+ */
+function setCanonical(c: Corrections, cups: Cup[], keys: string[], values: CanonicalValues): Corrections {
+  const originals = new Map(cups.flatMap((cup) => cup.entries.map((e) => [e.key, e])))
+  let result = c
+  for (const k of keys) {
+    const o = originals.get(k)
+    result = setOverride(result, k, {
+      lastname: values.lastname !== o?.lastname ? values.lastname : undefined,
+      firstname: values.firstname !== o?.firstname ? values.firstname : undefined,
+      birthYear: values.birthYear !== o?.birthYear ? values.birthYear : undefined,
+      gender: values.gender !== o?.gender ? values.gender : undefined,
+    })
+  }
+  return result
 }
 
 /** Operator says: these persons are the same swimmer. */
-export function mergePersons(c: Corrections, persons: Person[], values: CanonicalValues): Corrections {
+export function mergePersons(c: Corrections, cups: Cup[], persons: Person[], values: CanonicalValues): Corrections {
   const keys = persons.flatMap((p) => p.entries.map((e) => e.key))
   const keySet = new Set(keys)
   const separations = removePairs(c.separations, (a, b) => keySet.has(a) && keySet.has(b))
   const merges = [...c.merges]
   for (let i = 1; i < persons.length; i++) merges.push([persons[0].entries[0].key, persons[i].entries[0].key])
-  return setCanonical({ ...c, merges, separations }, keys, values)
+  return setCanonical({ ...c, merges, separations }, cups, keys, values)
 }
 
 /** Operator says: these persons are different swimmers – never suggest them again. */
@@ -81,6 +93,6 @@ export function setOverride(c: Corrections, entryKey: string, override: EntryOve
 }
 
 /** Applies an override to every entry of a person (e.g. to fix a person-wide inconsistency). */
-export function setPersonValues(c: Corrections, person: Person, values: CanonicalValues): Corrections {
-  return setCanonical(c, person.entries.map((e) => e.key), values)
+export function setPersonValues(c: Corrections, cups: Cup[], person: Person, values: CanonicalValues): Corrections {
+  return setCanonical(c, cups, person.entries.map((e) => e.key), values)
 }

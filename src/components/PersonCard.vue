@@ -26,7 +26,7 @@ function detach(entry: Entry) {
 function confirmJoin(values: CanonicalValues) {
   if (!joinWith.value) return
   const other = joinWith.value
-  updateCorrections((c) => mergePersons(c, [props.person, other], values))
+  updateCorrections((c) => mergePersons(c, state.cups, [props.person, other], values))
   joining.value = false
   joinWith.value = null
 }

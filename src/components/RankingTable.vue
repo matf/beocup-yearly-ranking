@@ -10,10 +10,10 @@ defineProps<{ rows: RankingRow[]; cups: Cup[]; eligible: boolean }>()
   <table class="ranking">
     <thead>
       <tr>
-        <th v-if="eligible" class="num">Rang</th>
-        <th>Name</th>
-        <th class="num">Jg.</th>
-        <th>Verein</th>
+        <th v-if="eligible" class="num col-rank">Rang</th>
+        <th class="col-name">Name</th>
+        <th class="num col-year">Jg.</th>
+        <th class="col-club">Verein</th>
         <th v-for="c in cups" :key="c.id" class="num">{{ c.city }}</th>
         <th v-if="eligible" class="num">Total</th>
         <th v-if="eligible" class="num">Rückstand</th>
@@ -36,7 +36,12 @@ defineProps<{ rows: RankingRow[]; cups: Cup[]; eligible: boolean }>()
 </template>
 
 <style scoped>
-.ranking { font-size: .9rem; }
+/* fixed layout so all category tables line up */
+.ranking { font-size: .9rem; table-layout: fixed; min-width: 760px; }
+.col-rank { width: 4rem; }
+.col-name { width: 22%; }
+.col-year { width: 3.5rem; }
+.col-club { width: 20%; }
 .total { font-weight: 600; }
 .podium td:first-child { font-weight: 600; }
 .missing { color: var(--muted); font-style: italic; font-size: .85em; }

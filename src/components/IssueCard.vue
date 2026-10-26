@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { Issue } from '../core/issues'
 import { ISSUE_LABELS } from '../core/issues'
 import { mergePersons, separatePersons, setPersonValues, type CanonicalValues } from '../core/corrections'
-import { updateCorrections } from '../store'
+import { state, updateCorrections } from '../store'
 import PersonCard from './PersonCard.vue'
 import MergeForm from './MergeForm.vue'
 
@@ -14,7 +14,7 @@ const isPair = props.issue.persons.length === 2
 
 function confirm(values: CanonicalValues) {
   updateCorrections((c) =>
-    isPair ? mergePersons(c, props.issue.persons, values) : setPersonValues(c, props.issue.persons[0], values),
+    isPair ? mergePersons(c, state.cups, props.issue.persons, values) : setPersonValues(c, state.cups, props.issue.persons[0], values),
   )
 }
 

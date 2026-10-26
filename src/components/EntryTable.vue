@@ -67,6 +67,13 @@ function result(e: Entry, stroke: (typeof STROKES)[number]) {
 </template>
 
 <style scoped>
-.entries { font-size: .9rem; }
+.entries { font-size: .9rem; table-layout: fixed; min-width: 900px; }
+/* fixed widths so the tables of several persons line up */
+.entries th:nth-child(1) { width: 14%; }
+.entries th:nth-child(2) { width: 18%; }
+.entries th:nth-child(3) { width: 6%; }
+.entries th:nth-child(4) { width: 3%; }
+.entries th:nth-child(5) { width: 22%; }
+.entries th:nth-child(n + 6):nth-child(-n + 9) { width: 8%; }
 .nowrap { white-space: nowrap; }
 </style>

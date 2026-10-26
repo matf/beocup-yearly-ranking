@@ -110,11 +110,17 @@ describe('REQ 5.2/5.3 – operator decisions', () => {
   it('merge as same person: one person with the chosen values, issue resolved', () => {
     const cs = cups()
     const persons = buildPersons(cs, corrections())
-    const c = mergePersons(corrections(), persons, { firstname: 'Timm', lastname: 'Gerber', birthYear: 2015, gender: 'M' })
+    const c = mergePersons(corrections(), cs, persons, { firstname: 'Timm', lastname: 'Gerber', birthYear: 2015, gender: 'M' })
     const merged = buildPersons(cs, c)
     expect(merged).toHaveLength(1)
     expect(merged[0].entries.every((e) => e.firstname === 'Timm')).toBe(true)
     expect(findIssues(merged, c)).toEqual([])
+  })
+
+  it('merge stores only values that differ from the file', () => {
+    const cs = cups()
+    const c = mergePersons(corrections(), cs, buildPersons(cs, corrections()), { firstname: 'Timm', lastname: 'Gerber', birthYear: 2015, gender: 'M' })
+    expect(c.overrides).toEqual({ [cs[0].entries[0].key]: { firstname: 'Timm' } })
   })
 
   it('different persons: the pair is not reported again', () => {
@@ -155,13 +161,13 @@ describe('REQ 5.2/5.3 – operator decisions', () => {
     const cs = [C1([a('1', 'Anna', 'Muster', '2014-01-01')]), C2([a('2', 'Anna', 'Mustermann', '2014-01-01')])]
     let c: Corrections = { ...corrections(), merges: [[cs[0].entries[0].key, cs[1].entries[0].key]] }
     const [p] = buildPersons(cs, c)
-    c = setPersonValues(c, p, { firstname: 'Anna', lastname: 'Muster', birthYear: 2014, gender: 'F' })
+    c = setPersonValues(c, cs, p, { firstname: 'Anna', lastname: 'Muster', birthYear: 2014, gender: 'F' })
     expect(issuesFor(cs, c)).toEqual([])
   })
 
   it('decisions stay valid when a new cup is added', () => {
     const cs = cups()
-    const c = mergePersons(corrections(), buildPersons(cs, corrections()), { firstname: 'Timm', lastname: 'Gerber', birthYear: 2015, gender: 'M' })
+    const c = mergePersons(corrections(), cs, buildPersons(cs, corrections()), { firstname: 'Timm', lastname: 'Gerber', birthYear: 2015, gender: 'M' })
     const withNew = [...cs, C3([a('9', 'Timm', 'Gerber', '2015-04-08', 'M')])]
     const persons = buildPersons(withNew, c)
     expect(persons).toHaveLength(1)

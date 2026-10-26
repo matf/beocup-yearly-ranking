@@ -51,7 +51,8 @@ export function updateCorrections(change: (c: Corrections) => Corrections) {
 }
 
 export async function addFiles(files: Iterable<File>) {
-  for (const file of files) {
+  // copy synchronously: a FileList is live and emptied when the input is reset
+  for (const file of Array.from(files)) {
     try {
       const cup = await loadCupFile(await file.arrayBuffer(), file.name)
       const years = new Set(state.cups.map((c) => c.year))
