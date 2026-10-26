@@ -66,23 +66,22 @@ describe.skipIf(files.length === 0)('real 2026 results', () => {
     })
   }
 
-  it('reports the known suspicious entries', () => {
+  // no names here on purpose: the repository must not contain real swimmer data
+  it('reports only the known similar-name cases and never pairs persons of the same cup', () => {
     const corrections = emptyCorrections()
     const issues = findIssues(buildPersons(cups, corrections), corrections)
-    const names = issues.map((i) => i.persons.map((p) => `${p.lastname} ${p.firstname}`).sort().join(' + '))
-    expect(names).toContain('Gerber Tim + Gerber Timm')
-    expect(names).toContain('De Vries Annelies + Vries Anneliese')
-    expect(names).toContain('Ammann Florian + Ammann Florian Matteo')
-    expect(names.some((n) => n.includes('Zbinden Jolanda') && n.includes('Zbinden Selina'))).toBe(false)
+    expect(issues.map((i) => i.type)).toEqual(['similar', 'similar', 'similar'])
   })
 
-  it('auto-matches placeholder birthdates, accents and club codes', () => {
+  it('auto-matches placeholder birthdates, accent variants and differing club codes', () => {
     const persons = buildPersons(cups, emptyCorrections())
-    const find = (last: string, first: string) =>
-      persons.filter((p) => normalizeName(p.lastname) === last && normalizeName(p.firstname) === first)
-    expect(find('hofstetter', 'simon')).toHaveLength(1)
-    expect(find('hofstetter', 'simon')[0].entries).toHaveLength(4)
-    expect(find('novak', 'jan')).toHaveLength(1)
+    const distinct = (p: (typeof persons)[number], f: (e: (typeof persons)[number]['entries'][number]) => string) =>
+      new Set(p.entries.map(f)).size
+    expect(persons.some((p) => distinct(p, (e) => e.birthdate) > 1)).toBe(true)
+    expect(persons.some((p) => distinct(p, (e) => e.lastname) > 1)).toBe(true)
+    expect(persons.some((p) => distinct(p, (e) => e.clubCode) > 1)).toBe(true)
+    // auto-matching never merges two entries of the same cup
+    expect(persons.every((p) => distinct(p, (e) => e.cupId) === p.entries.length)).toBe(true)
   })
 
   it('produces an interim ranking with eligible swimmers', () => {
