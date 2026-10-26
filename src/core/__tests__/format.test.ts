@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatGap, formatTime, genderLabel, groupTitle, outcomeLabel } from '../format'
+import { formatDate, formatGap, formatTime, genderLabel, groupTitle, outcomeLabel, outcomeShortLabel } from '../format'
 
 describe('REQ 6 – output formatting', () => {
   it('formats times like the Meet Manager lists', () => {
@@ -28,6 +28,14 @@ describe('REQ 6 – output formatting', () => {
     expect(outcomeLabel({ kind: 'exhibition' })).toBe('ausser Konkurrenz')
     expect(outcomeLabel({ kind: 'incomplete', validCount: 1 })).toBe('nur 1 gültige Zeit')
     expect(outcomeLabel({ kind: 'ok', total: 15800, counted: [] })).toBe('2:38.00')
+  })
+
+  it('has a compact print wording for every outcome', () => {
+    expect(outcomeShortLabel({ kind: 'absent' })).toBe('–')
+    expect(outcomeShortLabel({ kind: 'withdrawn' })).toBe('abg.')
+    expect(outcomeShortLabel({ kind: 'exhibition' })).toBe('aK')
+    expect(outcomeShortLabel({ kind: 'incomplete', validCount: 2 })).toBe('2 Zeiten')
+    expect(outcomeShortLabel({ kind: 'ok', total: 15800, counted: [] })).toBe('2:38.00')
   })
 
   it('formats dates Swiss style', () => {

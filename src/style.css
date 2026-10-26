@@ -93,5 +93,5 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   body { background: #fff; font-size: 10pt; }
   .no-print { display: none !important; }
   .card { border: none; padding: 0; }
-  @page { size: A4; margin: 14mm 12mm; }
+  @page { size: A4; margin: 10mm; }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
 import { issues, ranking } from '../store'
-import { ageLabel, formatDate, formatTime, groupTitle } from '../core/format'
+import { OUTCOME_LEGEND, ageLabel, formatDate, formatTime, groupTitle } from '../core/format'
 import RankingTable from '../components/RankingTable.vue'
 
 const options = reactive({ table: true, notEligible: true, winners: true })
@@ -69,7 +69,7 @@ const groupsWithNotEligible = computed(() => ranking.value.groups.filter((g) => 
 
     <section v-if="options.notEligible && groupsWithNotEligible.length" class="sheet">
       <h1>{{ title }} – nicht qualifiziert</h1>
-      <p class="sub">Schwimmer:innen ohne gültige Gesamtzeit an allen Cups</p>
+      <p class="sub">Schwimmer:innen ohne gültige Gesamtzeit an allen Cups<br />{{ OUTCOME_LEGEND }}</p>
       <div v-for="g in groupsWithNotEligible" :key="g.category + g.gender" class="group">
         <h3>{{ groupTitle(g.category, g.gender) }} <span class="muted">{{ ageLabel(g.category) }}</span></h3>
         <RankingTable :rows="g.notEligible" :cups="ranking.cups" :eligible="false" />
@@ -90,7 +90,12 @@ const groupsWithNotEligible = computed(() => ranking.value.groups.filter((g) => 
 @media print {
   .sheet { border: none; padding: 0; margin: 0; break-after: page; }
   .sheet:last-child { break-after: auto; }
-  .sheet h1 { font-size: 16pt; }
-  .group h3 { font-size: 11pt; }
+  .sheet h1 { font-size: 14pt; }
+  .sub { font-size: 8pt; margin-bottom: 3mm; }
+  .group { margin-bottom: 4mm; }
+  .group h3 { font-size: 10pt; margin-bottom: 1mm; }
+  .sheet > h2 { font-size: 11pt; }
+  .winners { font-size: 9pt; }
+  .winners td, .winners th { padding: 2pt 4pt; }
 }
 </style>

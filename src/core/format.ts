@@ -60,6 +60,24 @@ export function outcomeLabel(o: CupOutcome): string {
   }
 }
 
+/** Compact wording for print, explained by OUTCOME_LEGEND. */
+export function outcomeShortLabel(o: CupOutcome): string {
+  switch (o.kind) {
+    case 'ok':
+      return formatTime(o.total)
+    case 'absent':
+      return '–'
+    case 'withdrawn':
+      return 'abg.'
+    case 'exhibition':
+      return 'aK'
+    case 'incomplete':
+      return `${o.validCount} Zeit${o.validCount === 1 ? '' : 'en'}`
+  }
+}
+
+export const OUTCOME_LEGEND = '– nicht gestartet · abg. abgemeldet · aK ausser Konkurrenz · n Zeiten: nur n gültige Zeiten'
+
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y}`
