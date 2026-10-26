@@ -4,3 +4,7 @@ dist/
 *.log
 # result files contain personal data (names, birthdates, contacts) – keep them local
 results/
+# LENEX files anywhere in the repo, and exported corrections (they contain corrected swimmer names)
+*.lxf
+*.lef
+beocup-korrekturen-*.json
