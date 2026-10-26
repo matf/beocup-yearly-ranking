@@ -71,5 +71,6 @@ export interface Person {
   lastname: string
   birthYear: number
   gender: Gender
+  /** current name of the club (see clubs.ts) from the most recent entry */
   clubName: string
 }

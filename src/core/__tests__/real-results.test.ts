@@ -16,6 +16,7 @@ import { categoryForAge, computeRanking, scoreEntry } from '../scoring'
 import { emptyCorrections } from '../corrections'
 import { normalizeName } from '../normalize'
 import { formatTime } from '../format'
+import { CLUBS } from '../clubs'
 import type { Cup } from '../types'
 
 const DIR = resolve(__dirname, '../../../results')
@@ -111,6 +112,16 @@ describe.skipIf(lxfFiles.length === 0)('real results', () => {
       const persons = buildPersons(list, corrections)
       expect(persons.every((p) => new Set(p.entries.map((e) => e.cupId)).size === p.entries.length)).toBe(true)
       expect(computeRanking(list, persons, corrections.settings).groups).toHaveLength(10)
+    }
+  })
+
+  it('maps nearly every swimmer to one of the six clubs', () => {
+    const names = new Set(CLUBS.map((c) => c.name))
+    for (const list of years.values()) {
+      const persons = buildPersons(list, emptyCorrections())
+      const known = persons.filter((p) => names.has(p.clubName)).length
+      // a few starts registered under the Startgemeinschaft itself remain
+      expect(known / persons.length).toBeGreaterThan(0.97)
     }
   })
 

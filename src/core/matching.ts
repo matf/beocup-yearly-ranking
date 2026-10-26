@@ -1,5 +1,6 @@
 import type { Corrections, Cup, Entry, EntryOverride, Person } from './types'
 import { normalizeName } from './normalize'
+import { clubName } from './clubs'
 
 export function applyOverride(entry: Entry, override: EntryOverride | undefined): Entry {
   if (!override) return entry
@@ -80,7 +81,7 @@ export function buildPersons(cups: Cup[], corrections: Corrections): Person[] {
       lastname: latest.lastname,
       birthYear: latest.birthYear,
       gender: latest.gender,
-      clubName: latest.clubName,
+      clubName: clubName(latest.clubCode, latest.clubName),
     })
   }
   return persons.sort((a, b) => personSortKey(a).localeCompare(personSortKey(b), 'de'))

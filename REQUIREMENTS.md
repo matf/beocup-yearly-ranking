@@ -154,7 +154,22 @@ The exported file contains names, so it must never be committed.
        to the leader
      - the non-eligible swimmers: each cup's outcome or the reason (nicht gestartet,
        abgemeldet, ausser Konkurrenz, nur n gültige Zeiten)
-- The name and club shown are those of the most recent cup.
+- The name shown is the one of the most recent cup.
+- **Clubs:** always the same six clubs take part. The files use varying codes and names for
+  them (renamings, typos), so the app shows each club's current name, derived from its code
+  (`src/core/clubs.ts`):
+
+  | Codes | Shown as |
+  |---|---|
+  | INT, INTE | Interlaken Aquatics 1930 |
+  | UET | Schwimmclub Delphin Uetendorf |
+  | SAAN | Schulsport Saanenland |
+  | SCFR | Schwimmclub Frutigen |
+  | SCSP | Schwimmclub Spiez |
+  | THUN, SKT | Schwimmklub Thun |
+
+  An unknown code keeps the file's name. The entry table in Schwimmer:innen and Prüfen
+  still shows the name exactly as written in each file.
 
 ## 8. Quality
 

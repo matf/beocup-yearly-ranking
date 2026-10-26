@@ -29,6 +29,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - `corrections.ts`: operator decisions as pure `Corrections → Corrections` functions, and import validation.
   - `scoring.ts`: categories, the per-cup outcome (`ok|absent|withdrawn|exhibition|incomplete`) and the ranking.
   - `format.ts`: German labels and times.
+  - `clubs.ts`: the six clubs; maps file club codes to the current club name for display.
   - `__tests__/`: one `describe` per requirement. `fixtures.ts` builds synthetic LENEX files. `real-results.test.ts` is the local real-data check.
 - `src/store.ts`: reactive state. Cups and corrections live in `localStorage`; persons, issues and ranking are `computed`.
 - `src/views/`: the tabs Cups, Prüfen, Schwimmer:innen, Rangliste, Druck.
@@ -44,6 +45,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - The key uses the birth year only, because `YYYY-01-01` placeholders are common.
   - The club is never in the key: codes vary (INT/INTE) and swimmers change clubs.
   - Never merge two entries of the same cup (twins).
+- **Clubs:** display names come from `clubs.ts` by code (the files have old names and typos). Matching never uses the club.
 - **Entry keys** are `${date}-${city-slug}:${athleteid}`. Corrections depend on them, so don't change the format without a migration.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 
