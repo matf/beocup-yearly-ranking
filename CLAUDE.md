@@ -14,6 +14,9 @@ Live at https://matf.github.io/beocup-yearly-ranking/ (repo `matf/beocup-yearly-
 - `npm run build`: **runs the tests, then `vue-tsc`, then the Vite build**. A failing test fails the build and the deploy.
 - `npm run typecheck`
 
+The real-data test (`real-results.test.ts`) runs only where `results/` exists. Its Rangliste PDF
+checks need poppler (`brew install poppler`) and are skipped without it.
+
 TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
 
 `.github/workflows/pages.yml` builds and deploys to GitHub Pages on every push to `main`.
@@ -47,6 +50,11 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - Never merge two entries of the same cup (twins).
 - **Clubs:** display names come from `clubs.ts` by code, because the files have old names and typos. The official names are the ones in the Swiss Aquatics member list, see REQUIREMENTS §7. Matching never uses the club.
 - **Entry keys** are `${date}-${city-slug}:${athleteid}`. Corrections depend on them, so don't change the format without a migration.
+- **SPLASH Rangliste PDFs:**
+  - The total is followed by the number of strokes it contains (`2:33.863` = 2:33.86 from 3 strokes).
+  - Times in `( )` don't count, and `*` marks a DSQ.
+  - Tied swimmers after the first have no rank number.
+  - Preliminary lists printed on the day can differ from the final ones.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 
 ## Personal data – strict

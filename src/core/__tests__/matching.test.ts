@@ -75,6 +75,7 @@ describe('REQ 5.2 – suspicious entries', () => {
     ['name prefix and typo', ['Anneliese', 'Vries'], ['Annelies', 'De Vries']],
     ['additional first name', ['Florian', 'Ammann'], ['Florian Matteo', 'Ammann']],
     ['double last name', ['Aiko', 'Meier Huber'], ['Aiko', 'Meier']],
+    ['typo in the last name, same first name', ['Marta', 'Brunner'], ['Marta', 'Brummer']],
   ])('detects similar names: %s', (_, [f1, l1], [f2, l2]) => {
     const issues = issuesFor([C1([a('1', f1, l1, '2015-01-01')]), C2([a('2', f2, l2, '2015-04-08')])])
     expect(issues.map((i) => i.type)).toEqual(['similar'])
@@ -84,6 +85,11 @@ describe('REQ 5.2 – suspicious entries', () => {
     const issues = issuesFor([C1([a('1', 'Sepp', 'Novak', '2010-07-23', 'M')]), C2([a('2', 'Josef', 'Novák', '2010-07-23', 'M')])])
     expect(issues.map((i) => i.type)).toEqual(['birthdate'])
     expect(issues[0].details).toContain('Geburtsdatum: 2010-07-23')
+  })
+
+  it('detects the same first name and exact birthdate despite a strongly misspelt last name', () => {
+    const issues = issuesFor([C1([a('1', 'Lino', 'Hauser', '2009-04-02', 'M')]), C2([a('2', 'Lino', 'Hausmann', '2009-04-02', 'M')])])
+    expect(issues.map((i) => i.type)).toEqual(['birthdate'])
   })
 
   it('ignores placeholder birthdates (YYYY-01-01) for the birthdate rule', () => {

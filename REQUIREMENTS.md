@@ -87,7 +87,8 @@ Each file has its own athlete IDs. Problems found in the real data (examples are
   birthdates or birth years
 - spelling variants: typos (Timm/Tim), accents (Novák/Novak), name prefixes
   (Vries/De Vries), an extra first name (Florian/Florian Matteo), double last names
-- nicknames (Sepp/Josef) with the same last name and birthdate
+- nicknames (Sepp/Josef) with the same last name and birthdate, and last names misspelt
+  beyond the similarity threshold (Hauser/Hausmann) with the same first name and birthdate
 - first and last name swapped; a wrong gender
 - different club codes for the same club (INT/INTE), and club changes during the year
 - twins in the same club with the same birthdate, who must never be merged
@@ -109,8 +110,8 @@ marked as different persons:
 | Vor-/Nachname vertauscht | first/last name of A = last/first name of B |
 | Jahrgang unterschiedlich | same normalized name, different birth year |
 | Geschlecht unterschiedlich | same normalized name, different gender |
-| Gleicher Nachname und Geburtsdatum | same normalized last name, gender and exact birthdate (not `YYYY-01-01`), different first name |
-| Ähnlicher Name | same gender, birth year ±1, and every name part of one name matches a distinct part of the other: equal, a prefix of ≥ 3 characters, or similarity ≥ 0.8 |
+| Gleiches Geburtsdatum | same gender and exact birthdate (not `YYYY-01-01`), and the same normalized last name **or** first name: nicknames (Sepp/Josef) and badly misspelt last names (Hauser/Hausmann) |
+| Ähnlicher Name | same gender, birth year ±1, and either every name part of one name matches a distinct part of the other (equal, a prefix of ≥ 3 characters, or similarity ≥ 0.8), or the first names are equal and the last names at least 0.6 similar (Brunner/Brummer) |
 | Widersprüchliche Angaben | a person (after a manual merge) whose entries differ in normalized name, birth year or gender |
 
 For each issue the operator chooses one of:
@@ -189,7 +190,14 @@ The exported file contains names, so it must never be committed.
   LENEX fixtures, one `describe` per requirement.
 - `npm run build` runs the tests, then the type check, then the build. CI deploys only a
   green build.
-- A real-data test runs locally against `results/` (git-ignored). It checks the per-cup
-  totals against the SPLASH CSV exports and the matching and issue detection on all years.
+- A real-data test runs locally against `results/` (git-ignored). For every year it checks:
+  - the per-cup totals and categories against the SPLASH exports (CSV/TXT), and that swimmers
+    without a SPLASH Mehrkampf total don't count for that cup
+  - every Mehrkampf row of the published Rangliste PDFs: total, counted strokes, DSQ marks and
+    the partial sums of incomplete rows. Ties and preliminary rankings that a later list replaced
+    are handled. This needs poppler (`pdftotext`, `pdfinfo`).
+  - that every entry of a cup resembling a swimmer marked "not started" there is reported as a
+    suspicious pair
+  - matching, issue detection and the ranking
 - **No real personal data in the repository:** no names, birthdates or contacts of
   swimmers or officials, in code, tests, docs or commit messages.

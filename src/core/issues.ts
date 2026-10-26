@@ -1,5 +1,5 @@
 import type { Corrections, Person } from './types'
-import { normalizeName, namesSimilar, tokens } from './normalize'
+import { normalizeName, namesSimilar, similarity, tokens } from './normalize'
 import { pairKey, sharesCup } from './matching'
 
 export type IssueType = 'swapped' | 'birthyear' | 'gender' | 'birthdate' | 'similar' | 'inconsistent'
@@ -17,7 +17,7 @@ export const ISSUE_LABELS: Record<IssueType, string> = {
   swapped: 'Vor-/Nachname vertauscht',
   birthyear: 'Jahrgang unterschiedlich',
   gender: 'Geschlecht unterschiedlich',
-  birthdate: 'Gleicher Nachname und Geburtsdatum',
+  birthdate: 'Gleiches Geburtsdatum',
   similar: 'Ähnlicher Name',
   inconsistent: 'Widersprüchliche Angaben',
 }
@@ -62,8 +62,10 @@ function classifyPair(a: Person, b: Person): IssueType | null {
   if (a.gender === b.gender && yearClose && namesSimilar(tokens(`${a.lastname} ${a.firstname}`), tokens(`${b.lastname} ${b.firstname}`))) {
     return 'similar'
   }
-  // a nickname or different first name (Sepp/Josef) – same last name and exact birthdate is still suspicious
-  if (al === bl && a.gender === b.gender && sharedBirthdate(a, b)) return 'birthdate'
+  // same first name, last name with a typo beyond the token threshold (Brunner/Brummer)
+  if (af === bf && a.gender === b.gender && yearClose && similarity(al, bl) >= 0.6) return 'similar'
+  // same exact birthdate and one name part equal: a nickname (Sepp/Josef) or a badly misspelt last name
+  if (a.gender === b.gender && (al === bl || af === bf) && sharedBirthdate(a, b)) return 'birthdate'
   return null
 }
 
