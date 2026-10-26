@@ -83,6 +83,7 @@ The app lists suspicious pairs of persons that never appear in the same cup:
 | Birth year differs | same normalized name, different birth year                           |
 | Gender differs     | same normalized name, different gender                               |
 | Similar name       | names very similar (typo, accent, extra first name, partial last name), birth year equal or ±1 |
+| Same last name and birthdate | same normalized last name, gender and exact birthdate (not a `YYYY-01-01` placeholder), but a different first name (nickname, e.g. Sepp/Josef) |
 
 A person that combines entries with different names, birth years or genders is also
 reported as **inconsistent**. This can only happen after manual merges.

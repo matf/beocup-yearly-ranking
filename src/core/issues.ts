@@ -2,7 +2,7 @@ import type { Corrections, Person } from './types'
 import { normalizeName, namesSimilar, tokens } from './normalize'
 import { pairKey, sharesCup } from './matching'
 
-export type IssueType = 'swapped' | 'birthyear' | 'gender' | 'similar' | 'inconsistent'
+export type IssueType = 'swapped' | 'birthyear' | 'gender' | 'birthdate' | 'similar' | 'inconsistent'
 
 export interface Issue {
   /** stable as long as the involved persons keep their first entry */
@@ -17,11 +17,12 @@ export const ISSUE_LABELS: Record<IssueType, string> = {
   swapped: 'Vor-/Nachname vertauscht',
   birthyear: 'Jahrgang unterschiedlich',
   gender: 'Geschlecht unterschiedlich',
+  birthdate: 'Gleicher Nachname und Geburtsdatum',
   similar: 'Ähnlicher Name',
   inconsistent: 'Widersprüchliche Angaben',
 }
 
-const ORDER: IssueType[] = ['inconsistent', 'swapped', 'gender', 'birthyear', 'similar']
+const ORDER: IssueType[] = ['inconsistent', 'swapped', 'gender', 'birthyear', 'birthdate', 'similar']
 
 function differences(a: Person, b: Person): string[] {
   const d: string[] = []
@@ -32,7 +33,19 @@ function differences(a: Person, b: Person): string[] {
   }
   if (a.birthYear !== b.birthYear) d.push(`Jahrgang: ${a.birthYear} / ${b.birthYear}`)
   if (a.gender !== b.gender) d.push(`Geschlecht: ${a.gender} / ${b.gender}`)
+  const shared = sharedBirthdate(a, b)
+  if (shared) d.push(`Geburtsdatum: ${shared}`)
   return d
+}
+
+/** `YYYY-01-01` is a common placeholder in the result files, so it says nothing about identity. */
+function realBirthdates(p: Person): Set<string> {
+  return new Set(p.entries.map((e) => e.birthdate).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !d.endsWith('-01-01')))
+}
+
+function sharedBirthdate(a: Person, b: Person): string | undefined {
+  const dates = realBirthdates(a)
+  return [...realBirthdates(b)].find((d) => dates.has(d))
 }
 
 function classifyPair(a: Person, b: Person): IssueType | null {
@@ -49,6 +62,8 @@ function classifyPair(a: Person, b: Person): IssueType | null {
   if (a.gender === b.gender && yearClose && namesSimilar(tokens(`${a.lastname} ${a.firstname}`), tokens(`${b.lastname} ${b.firstname}`))) {
     return 'similar'
   }
+  // a nickname or different first name (Sepp/Josef) – same last name and exact birthdate is still suspicious
+  if (al === bl && a.gender === b.gender && sharedBirthdate(a, b)) return 'birthdate'
   return null
 }
 

@@ -80,6 +80,16 @@ describe('REQ 5.2 – suspicious entries', () => {
     expect(issues.map((i) => i.type)).toEqual(['similar'])
   })
 
+  it('detects the same last name and exact birthdate despite a different first name', () => {
+    const issues = issuesFor([C1([a('1', 'Sepp', 'Novak', '2010-07-23', 'M')]), C2([a('2', 'Josef', 'Novák', '2010-07-23', 'M')])])
+    expect(issues.map((i) => i.type)).toEqual(['birthdate'])
+    expect(issues[0].details).toContain('Geburtsdatum: 2010-07-23')
+  })
+
+  it('ignores placeholder birthdates (YYYY-01-01) for the birthdate rule', () => {
+    expect(issuesFor([C1([a('1', 'Sepp', 'Novak', '2010-01-01', 'M')]), C2([a('2', 'Josef', 'Novak', '2010-01-01', 'M')])])).toEqual([])
+  })
+
   it('does not report different names, siblings of different age, or persons sharing a cup', () => {
     const issues = issuesFor([
       C1([a('1', 'Selina', 'Zbinden', '2014-11-19'), a('2', 'Jolanda', 'Zbinden', '2014-11-19'), a('3', 'Timm', 'Gerber', '2015-01-01')]),

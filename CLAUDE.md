@@ -27,7 +27,7 @@ build works under any sub-path. In CI the real-results test is skipped because `
   - `lenex.ts`: unzips `.lxf` (JSZip) and parses LENEX XML (fast-xml-parser) into `Cup`/`Entry`.
   - `normalize.ts`: name normalization and fuzzy name similarity.
   - `matching.ts`: groups entries into `Person`s (manual merges first, then auto-match on normalized name + birth year + gender; never two entries of the same cup, never a separated pair).
-  - `issues.ts`: suspicious entries: swapped names, birth year/gender differs, similar name, inconsistent person.
+  - `issues.ts`: suspicious entries: swapped names, birth year/gender differs, same last name + exact birthdate (nicknames), similar name, inconsistent person.
   - `corrections.ts`: operator decisions (merge, separate, detach, override) as pure `Corrections → Corrections` functions, plus import validation.
   - `scoring.ts`: categories, Gesamtzeit per cup, yearly ranking.
   - `format.ts`: German labels and time formatting.
@@ -52,10 +52,13 @@ build works under any sub-path. In CI the real-results test is skipped because `
 
 ## Data
 
-`results/` contains the real 2026 result files (`.lxf`, plus SPLASH `.csv` exports). They
-hold personal data and are **git-ignored**. `src/core/__tests__/real-results.test.ts` uses
-them when they are present: it checks every per-cup total against the CSV Mehrkampf
-column. It is skipped when the folder is missing.
+`results/` contains the real result files: the current year at the top level and in cup folders,
+past years under `BEO Cup/Archiv/` (with SPLASH `.csv` exports and the official yearly PDFs).
+They hold personal data and are **git-ignored**. `src/core/__tests__/real-results.test.ts` finds
+every result `.lxf` (files with swim times) and checks each CSV's Mehrkampf column against our
+per-cup totals (2024–2026, ~600 swimmers). It is skipped when the folder is missing.
+**Never put real swimmer names or birthdates into committed files** – tests use fictional names
+and the real-data test asserts only structure and counts.
 
 ## Conventions
 
