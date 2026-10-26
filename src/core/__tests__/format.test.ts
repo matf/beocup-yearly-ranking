@@ -25,6 +25,7 @@ describe('REQ 6 – output formatting', () => {
   it('explains why a cup did not count', () => {
     expect(outcomeLabel({ kind: 'absent' })).toBe('nicht gestartet')
     expect(outcomeLabel({ kind: 'withdrawn' })).toBe('abgemeldet')
+    expect(outcomeLabel({ kind: 'exhibition' })).toBe('ausser Konkurrenz')
     expect(outcomeLabel({ kind: 'incomplete', validCount: 1 })).toBe('nur 1 gültige Zeit')
     expect(outcomeLabel({ kind: 'ok', total: 15800, counted: [] })).toBe('2:38.00')
   })

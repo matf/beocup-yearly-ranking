@@ -83,6 +83,10 @@ describe('REQ 4 – scoring per cup', () => {
     expect(scoreEntry(entry(results), 'III')).toEqual({ kind: 'withdrawn' })
   })
 
+  it('an "ausser Konkurrenz" (EXH) start does not count', () => {
+    expect(scoreEntry(entry({ ...FOUR, FREE: ['35.00', 'EXH'] }), 'I')).toEqual({ kind: 'exhibition' })
+  })
+
   it('no entry at a cup counts as absent', () => {
     expect(scoreEntry(undefined, 'III')).toEqual({ kind: 'absent' })
   })

@@ -53,6 +53,8 @@ export function outcomeLabel(o: CupOutcome): string {
       return 'nicht gestartet'
     case 'withdrawn':
       return 'abgemeldet'
+    case 'exhibition':
+      return 'ausser Konkurrenz'
     case 'incomplete':
       return `nur ${o.validCount} gültige Zeit${o.validCount === 1 ? '' : 'en'}`
   }

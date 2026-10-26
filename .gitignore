@@ -8,3 +8,5 @@ results/
 *.lxf
 *.lef
 beocup-korrekturen-*.json
+# Reglement PDFs name a private person – keep local
+Regl_*.pdf

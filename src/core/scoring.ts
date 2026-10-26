@@ -36,10 +36,13 @@ export type CupOutcome =
   | { kind: 'ok'; total: number; counted: Stroke[] }
   | { kind: 'absent' }
   | { kind: 'withdrawn' }
+  | { kind: 'exhibition' }
   | { kind: 'incomplete'; validCount: number }
 
 export function scoreEntry(entry: Entry | undefined, category: Category): CupOutcome {
   if (!entry) return { kind: 'absent' }
+  // Reglement 2026 §1: squad swimmers of Kat. I/II start "ausser Konkurrenz" (SPLASH status EXH)
+  if (STROKES.some((s) => entry.results[s]?.status === 'EXH')) return { kind: 'exhibition' }
   const valid = STROKES.filter((s) => isValidResult(entry.results[s]))
     .map((s) => ({ stroke: s, time: effectiveTime(entry.results[s]!) }))
     .sort((a, b) => a.time - b.time)

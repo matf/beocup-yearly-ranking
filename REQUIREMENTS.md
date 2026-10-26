@@ -1,138 +1,168 @@
 # BEO-Cup Jahreswertung – Requirements
 
-## 1. Goal
+## 1. Goal and scope
 
 A static web app that reads the LENEX result files (`.lxf`) of the BEO-Cups of one year
-and produces the printable **yearly ranking for individual swimmers** ("Jahressieger:in",
-Reglement BEO-Cup section 8.2): one winner per category and gender.
+and produces the printable **yearly ranking for individual swimmers** (Jahresmeister:in,
+Reglement §8.2): one winner per category and gender.
 
-It replaces the manual "File Jahreswertung" process in SPLASH Meet Manager.
+It replaces a manual process in which the yearly totals were typed by hand from each
+cup's Mehrkampf list into a separate SPLASH "Jahreswertung" meet. Comparing 2024 and 2025
+showed that this process produced errors: wrong lists used, typing errors, swimmers split
+by name variants or club changes, and whole categories missing.
 
-Out of scope: the relay Jahresmeisterschaft (Reglement 8.1), Tagessieger, editing race
-results, multiple users and logins.
+Out of scope: the relay Jahresmeisterschaft (§8.1), Tagessieger, editing race results,
+multiple users and logins.
 
-## 2. Input
+## 2. Rules from the Reglement (edition 2026)
 
-- 1 to n BEO-Cup result files of one year. Each is an `.lxf` file (a zipped LENEX 3.0 export from SPLASH Meet Manager); an unzipped `.lef`/`.xml` is accepted too.
-- The number of cups per year is configurable (default **5**). Before all cups have
-  taken place, the app shows an interim ranking ("Zwischenstand nach x von 5 Cups").
-- Only the four individual 50 m events count: Butterfly, Backstroke, Breaststroke and
-  Freestyle (`SWIMSTYLE distance=50 relaycount=1`). Relays, 100 m and 400 m Freestyle
-  are ignored.
-  Event numbers and IDs differ between files, so events are identified by stroke.
-- Each cup is identified by its date and city. Each entry is identified by the cup and
-  the LENEX `athleteid`.
+The Reglement PDF is not in the repository because it names a private person. Only these
+parts matter for this app:
 
-## 3. Categories (Reglement section 3)
+- **§1 Ausser Konkurrenz:** squad swimmers (Regional-/Nationalkader) of Kat. I and II
+  start "ausser Konkurrenz" (aK) when they swim at all. Their time is listed with "aK".
+- **§2 DSQ:** a rule violation in the individual races adds a **3 s penalty** to the time.
+- **§3 Categories:** see section 4 below.
+- **§5 Distances:**
+  - Kat. V and IV swim a Dreikampf (Back, Breast, Free). Fly may be swum additionally,
+    and the **3 best times** count.
+  - Kat. III, II and I swim a Vierkampf: all 4 strokes.
+- **§7:** one Mehrkampf ranking per category and gender, using the cumulated times.
+- **§8.2:** one yearly winner per category. **Only swimmers who took part in all BEO-Cups
+  of the year qualify.** There is no fallback rule: if nobody qualifies, the category has no
+  winner.
 
-Age = year of the cup − birth year (LENEX `AGEDATE type=YEAR`). A swimmer keeps the
-same category for the whole year.
+## 3. Input
 
-| Kat. | Age   | Mode      | Scoring                                   |
-|------|-------|-----------|-------------------------------------------|
-| V    | ≤ 10  | Dreikampf | best 3 of up to 4 strokes (Fly optional)  |
-| IV   | 11–12 | Dreikampf | best 3 of up to 4 strokes (Fly optional)  |
-| III  | 13–14 | Vierkampf | all 4 strokes                             |
-| II   | 15–16 | Vierkampf | all 4 strokes                             |
-| I    | ≥ 17  | Vierkampf | all 4 strokes                             |
+- The BEO-Cup result files of one year: `.lxf` (a zipped LENEX 3.0 export from SPLASH
+  Meet Manager), or an unzipped `.lef`/`.xml`.
+- The number of cups per year is configurable (default **5**). With fewer cups loaded,
+  the ranking is an interim one ("Zwischenstand nach x von 5 Cups").
+- Only the four individual **50 m** events count (`SWIMSTYLE distance=50 relaycount=1`,
+  strokes FLY/BACK/BREAST/FREE). Relays, 100 m and 400 m are ignored. Event numbers differ
+  between files, so events are identified by stroke.
+- A cup is identified by date + city (`2026-08-22-thun`); an entry by cup + LENEX
+  `athleteid`.
 
-Boys and girls are ranked separately, which gives 10 rankings.
-The labels are Mädchen/Knaben for Kat. V–III and Damen/Herren for Kat. II–I.
+## 4. Categories
 
-## 4. Scoring
+Age = cup year − birth year (LENEX `AGEDATE type=YEAR`). The category stays the same for
+the whole year. Boys and girls are ranked separately, which gives 10 rankings.
 
-- **Valid time:** a `swimtime` greater than 0 whose status is not DNS, DNF or WDR.
-- **DSQ:** the time counts with a **3 s penalty** (Reglement section 2). The LENEX
-  `swimtime` does *not* contain the penalty: SPLASH adds it only in its Mehrkampf list,
-  which was verified against the CSV exports of Aeschi and Thun. The penalty is applied
-  before the best 3 times are chosen.
-- **Gesamtzeit of one cup:**
-  - Kat. V/IV: the sum of the 3 fastest valid times. At least 3 valid times are needed.
-  - Kat. III–I: the sum of all 4 times. All 4 must be valid.
-- **Yearly total:** the sum of the Gesamtzeiten from all cups.
-- **Eligible for the yearly ranking:** a valid Gesamtzeit at **every** cup of the year.
-  While the year is still running, this means every cup loaded so far.
-- **Ties:** equal totals get the same rank (1, 2, 2, 4).
+| Kat. | Age   | Label            | Gesamtzeit of one cup                    |
+|------|-------|------------------|------------------------------------------|
+| V    | ≤ 10  | Mädchen / Knaben | sum of the 3 fastest valid times (of ≤ 4) |
+| IV   | 11–12 | Mädchen / Knaben | sum of the 3 fastest valid times (of ≤ 4) |
+| III  | 13–14 | Mädchen / Knaben | sum of all 4 times                       |
+| II   | 15–16 | Damen / Herren   | sum of all 4 times                       |
+| I    | ≥ 17  | Damen / Herren   | sum of all 4 times                       |
 
-## 5. Identifying swimmers across cups
+Kat. I belongs to the yearly ranking: it is excluded only from the Tagessieg.
 
-Each file has its own athlete IDs, and the data contains real problems:
+## 5. Scoring
 
-- placeholder birthdates (`YYYY-01-01`)
-- spelling variants (Timm/Tim, Novák/Novak, Vries/De Vries, Florian/Florian Matteo)
-- first and last name swapped
-- wrong birthdates or genders
-- different club codes for the same club (INT/INTE)
-- twins in the same club with the same birthdate (who must never be merged)
+- **Valid time:** `swimtime` > 0 and the status is not DNS, DNF or WDR. DNS and WDR come
+  with `00:00:00.00`.
+- **DSQ:** the time counts plus **3 s**. The LENEX `swimtime` does **not** include the
+  penalty; SPLASH adds it only in its Mehrkampf list. The penalty is added **before** the
+  best 3 are chosen, so it can change which strokes count.
+- **aK (status EXH on an individual 50 m result):** that cup does not count, so the swimmer
+  is not eligible. The reason shows as "ausser Konkurrenz".
+- **Gesamtzeit of a cup:** see the table in section 4. If too few valid times exist, the cup
+  does not count.
+- **Yearly total:** the sum of the Gesamtzeiten of all cups.
+- **Eligible:** a valid Gesamtzeit at **every** loaded cup.
+- **Ties:** equal totals share a rank (1, 2, 2, 4).
 
-### 5.1 Automatic matching
-Entries are the same person when **normalized** last name + first name + birth year +
-gender are equal. Normalizing means:
-- ignoring case
-- removing accents (ó → o, é → e, ü → u)
-- merging repeated whitespace and hyphens
+**Verified:** the per-cup Gesamtzeiten match SPLASH's own Mehrkampf column in the CSV
+exports exactly, for every swimmer of every cup from 2024 to 2026 that has a CSV (about
+600 swimmers, about 75 of them with a DSQ penalty). The real-data test checks this on
+every local build.
 
-Two entries of the **same cup** are never merged.
+## 6. Identifying swimmers across cups
 
-### 5.2 Suspicious entries (to be checked by an operator)
-The app lists suspicious pairs of persons that never appear in the same cup:
+Each file has its own athlete IDs. Problems found in the real data (examples are fictional):
 
-| Type               | Rule                                                                 |
-|--------------------|----------------------------------------------------------------------|
-| Names swapped      | first/last name of A = last/first name of B                          |
-| Birth year differs | same normalized name, different birth year                           |
-| Gender differs     | same normalized name, different gender                               |
-| Similar name       | names very similar (typo, accent, extra first name, partial last name), birth year equal or ±1 |
-| Same last name and birthdate | same normalized last name, gender and exact birthdate (not a `YYYY-01-01` placeholder), but a different first name (nickname, e.g. Sepp/Josef) |
+- placeholder birthdates (`YYYY-01-01`) next to real ones, and occasionally wrong
+  birthdates or birth years
+- spelling variants: typos (Timm/Tim), accents (Novák/Novak), name prefixes
+  (Vries/De Vries), an extra first name (Florian/Florian Matteo), double last names
+- nicknames (Sepp/Josef) with the same last name and birthdate
+- first and last name swapped; a wrong gender
+- different club codes for the same club (INT/INTE), and club changes during the year
+- twins in the same club with the same birthdate, who must never be merged
 
-A person that combines entries with different names, birth years or genders is also
-reported as **inconsistent**. This can only happen after manual merges.
+### 6.1 Automatic matching
+Entries are the same person when normalized last name + first name + birth year + gender
+are equal. Normalizing means:
+- lower case, accents removed, ß → ss
+- hyphens and punctuation turned into spaces, whitespace collapsed
+
+The club is **not** part of the key. Two entries of the **same cup** are never merged.
+
+### 6.2 Suspicious entries
+These are reported only for pairs of persons who never appear in the same cup, and are not
+marked as different persons:
+
+| Type | Rule |
+|---|---|
+| Vor-/Nachname vertauscht | first/last name of A = last/first name of B |
+| Jahrgang unterschiedlich | same normalized name, different birth year |
+| Geschlecht unterschiedlich | same normalized name, different gender |
+| Gleicher Nachname und Geburtsdatum | same normalized last name, gender and exact birthdate (not `YYYY-01-01`), different first name |
+| Ähnlicher Name | same gender, birth year ±1, and every name part of one name matches a distinct part of the other: equal, a prefix of ≥ 3 characters, or similarity ≥ 0.8 |
+| Widersprüchliche Angaben | a person (after a manual merge) whose entries differ in normalized name, birth year or gender |
 
 For each issue the operator chooses one of:
-- **Same person**: merge, and choose the correct name, birth year and gender. These
-  values are written to all entries of the merged person.
-- **Different persons**: the pair is remembered and never reported again.
-- **Edit an entry**: correct the data of a single entry.
+- **Same person:** merge, and choose the correct name, birth year and gender. Only the
+  fields that differ from the file are stored as overrides.
+- **Different persons:** the pair is never reported again.
+- **Edit single entries** (6.3).
 
-### 5.3 Editing single entries
-Every entry can be:
-- edited: first name, last name, birth year, gender
-- joined with another swimmer (only swimmers who did not take part in the same cup are offered)
-- detached from its person
+### 6.3 Single entries
+Each entry can be edited (first and last name, birth year, gender) or reset to the file
+values. It can be joined with another person (only persons without a shared cup are
+offered, most similar first) or detached from its person.
 
-### 5.4 Corrections file
-All operator decisions are stored in `corrections.json`:
-- merges
-- separations
-- entry overrides
-- settings
+### 6.4 Corrections
+The decisions are stored as JSON:
+`{format:"beocup-corrections", version:1, merges, separations, overrides, settings}`.
+- merges and separations are pairs of entry keys
+- overrides are keyed by entry key
 
-The app saves them automatically in the browser and can export and import them as a file.
-Decisions refer to entries (cup + athleteid), so they stay valid when a new cup file is
-added later.
+The app saves them in the browser (`localStorage`) automatically and can export and
+import them as a file. Because they use entry keys, they stay valid when a cup is added.
+The exported file contains names, so it must never be committed.
 
-## 6. Web app
+## 7. Web app
 
-- Vue 3 + TypeScript + Vite as a static build with no backend. It can be opened locally
-  or put on any web space.
-- The files are unzipped and parsed in the browser.
+- Vue 3 + TypeScript + Vite as a static build with no backend. The files are parsed in the
+  browser and never uploaded anywhere.
 - The UI is in German.
-- Views:
-  1. **Cups**: load files and list them (place, date, number of swimmers); remove a cup; settings (cups per year).
-  2. **Prüfen**: the suspicious entries with their actions (5.2).
-  3. **Schwimmer**: all persons with their entries per cup, search, edit, join, detach (5.3).
-  4. **Rangliste**: the yearly ranking per category and gender on screen.
-  5. **Druck**: printable output through the browser's print function (A4).
-- Printed sections, each optional:
-  1. The full yearly table per category and gender: rank, name, birth year, club, the
-     Gesamtzeit of each cup, the total, and the gap to first place.
-  2. The non-eligible swimmers per category: the cups they took part in, or the reason
-     (did not take part, withdrawn, too few valid times).
-  3. A Jahressieger:innen summary: the winner of each category and gender.
-- The club shown is the one from the most recent cup.
+- Tabs:
+  1. **Cups:** load files (drag and drop, several at once), list or remove cups, set the
+     number of cups per year, and export/import/reset the corrections.
+  2. **Prüfen:** suspicious entries with their actions; the tab shows the number of open issues.
+  3. **Schwimmer:innen:** all persons, with search and filters (all; at all cups; not at all
+     cups; corrected). Each person shows its entries per cup (times, DSQ marked,
+     placeholder birthdates marked) with edit, join and detach.
+  4. **Rangliste:** per category and gender, with a warning when the ranking is interim or
+     issues are unresolved. The non-eligible swimmers can be shown.
+  5. **Druck:** A4 output through the browser's print/PDF function. Three optional sections:
+     - the Jahressieger:innen summary
+     - the full table: rank, name, birth year, club, the Gesamtzeit of each cup, total, gap
+       to the leader
+     - the non-eligible swimmers: each cup's outcome or the reason (nicht gestartet,
+       abgemeldet, ausser Konkurrenz, nur n gültige Zeiten)
+- The name and club shown are those of the most recent cup.
 
-## 7. Quality
+## 8. Quality
 
-- Parsing, matching, issue detection and scoring are pure TypeScript modules without UI,
-  with unit tests (Vitest).
-- An integration test runs against the real files in `results/` when they are present.
+- The domain logic (`src/core`) is pure TypeScript with Vitest unit tests on synthetic
+  LENEX fixtures, one `describe` per requirement.
+- `npm run build` runs the tests, then the type check, then the build. CI deploys only a
+  green build.
+- A real-data test runs locally against `results/` (git-ignored). It checks the per-cup
+  totals against the SPLASH CSV exports and the matching and issue detection on all years.
+- **No real personal data in the repository:** no names, birthdates or contacts of
+  swimmers or officials, in code, tests, docs or commit messages.

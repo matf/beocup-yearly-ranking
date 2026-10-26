@@ -1,67 +1,66 @@
 # BEO-Cup Jahreswertung
 
-Static Vue 3 + TypeScript web app (Vite, no backend) that computes the yearly individual
-ranking ("Jahressieger:in") of the BEO-Cup swimming series from SPLASH Meet Manager
-LENEX result files (`.lxf`).
+A static Vue 3 + TypeScript app (Vite, no backend). It computes the yearly individual
+ranking of the BEO-Cup swimming series from SPLASH Meet Manager LENEX result files.
+`REQUIREMENTS.md` holds all domain rules (Reglement 2026 summary, scoring, matching, UI).
+**Read it first.**
 
-- `REQUIREMENTS.md`: the requirements, numbered REQ 2–7. Read it first.
-- `Regl_BEO-Cup.pdf`: the official rules (categories in §3, scoring in §5/§7, yearly
-  ranking in §8.2).
+Live at https://matf.github.io/beocup-yearly-ranking/ (repo `matf/beocup-yearly-ranking`).
 
 ## Commands
 
 - `npm run dev`: dev server
 - `npm test`: Vitest
-- `npm run build`: **runs the tests, then the type check (`vue-tsc`), then the Vite build**. A failing test fails the build.
+- `npm run build`: **runs the tests, then `vue-tsc`, then the Vite build**. A failing test fails the build and the deploy.
 - `npm run typecheck`
 
-TypeScript is pinned to 5.9 because vue-tsc does not support TypeScript 7 yet.
+TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
 
-Deployment: `.github/workflows/pages.yml` builds on every push to `main` and publishes `dist/`
-to GitHub Pages (https://matf.github.io/beocup-yearly-ranking/). Vite uses `base: './'`, so the
-build works under any sub-path. In CI the real-results test is skipped because `results/` is not in git.
+`.github/workflows/pages.yml` builds and deploys to GitHub Pages on every push to `main`.
+`base: './'` keeps the build path-independent.
 
 ## Layout
 
-- `src/core/`: pure domain logic. It imports no Vue, so it is unit-testable in Node.
-  - `lenex.ts`: unzips `.lxf` (JSZip) and parses LENEX XML (fast-xml-parser) into `Cup`/`Entry`.
-  - `normalize.ts`: name normalization and fuzzy name similarity.
-  - `matching.ts`: groups entries into `Person`s (manual merges first, then auto-match on normalized name + birth year + gender; never two entries of the same cup, never a separated pair).
-  - `issues.ts`: suspicious entries: swapped names, birth year/gender differs, same last name + exact birthdate (nicknames), similar name, inconsistent person.
-  - `corrections.ts`: operator decisions (merge, separate, detach, override) as pure `Corrections → Corrections` functions, plus import validation.
-  - `scoring.ts`: categories, Gesamtzeit per cup, yearly ranking.
-  - `format.ts`: German labels and time formatting.
-  - `__tests__/`: one `describe` per requirement (`REQ x – …`); `fixtures.ts` builds synthetic LENEX files.
-- `src/store.ts`: reactive app state. Cups and corrections are persisted in `localStorage`; persons, issues and ranking are `computed` from them.
+- `src/core/`: pure domain logic. It imports no Vue.
+  - `lenex.ts`: unzips the file (JSZip) and parses it (fast-xml-parser) into `Cup`/`Entry`.
+  - `normalize.ts`: name normalization and similarity.
+  - `matching.ts`: groups entries into `Person`s: manual merges first, then the auto key.
+  - `issues.ts`: suspicious entries (REQUIREMENTS §6.2).
+  - `corrections.ts`: operator decisions as pure `Corrections → Corrections` functions, and import validation.
+  - `scoring.ts`: categories, the per-cup outcome (`ok|absent|withdrawn|exhibition|incomplete`) and the ranking.
+  - `format.ts`: German labels and times.
+  - `__tests__/`: one `describe` per requirement. `fixtures.ts` builds synthetic LENEX files. `real-results.test.ts` is the local real-data check.
+- `src/store.ts`: reactive state. Cups and corrections live in `localStorage`; persons, issues and ranking are `computed`.
 - `src/views/`: the tabs Cups, Prüfen, Schwimmer:innen, Rangliste, Druck.
-- `src/components/`: shared components (entry table, person card, merge/edit/join forms, ranking table).
+- `src/components/`: shared components.
 
-## Domain rules that are easy to get wrong
+## Easy to get wrong
 
-- **DSQ:** the LENEX `swimtime` of a DSQ is the raw time. Add **+3 s** (Reglement §2), *before* choosing the best 3 times. This was verified against the Meet Manager Mehrkampf totals in the CSV exports.
-- **Valid time:** `time > 0` and status not DNS/DNF/WDR. DNS/WDR come with `00:00:00.00`.
-- **Kat. V/IV (age ≤ 12):** the best 3 of up to 4 strokes count, Fly included. **Kat. III–I:** all 4 strokes are required.
-- **Age** = cup year − birth year. This fixes the category for the whole year.
-- **Eligible:** a valid Gesamtzeit at every loaded cup.
-- **Only the 50 m individual events count.** Relays, 100 m and 400 m are ignored, and the relay Jahresmeisterschaft is out of scope. Identify events by `SWIMSTYLE` (stroke, distance 50, relaycount 1), never by event number.
+- **DSQ:** add +3 s to the raw LENEX time, **before** picking the best 3.
+- **Status:** EXH (aK) makes the cup not count. DNS/DNF/WDR and a zero time are invalid.
+- **Kat. V/IV:** the best 3 of ≤ 4 strokes count, Fly included. **Kat. III–I:** all 4 strokes. Kat. I is ranked too.
+- **Events:** identify them by `SWIMSTYLE`, never by event number. Only 50 m individual events count.
 - **Matching:**
-  - Birthdates are often placeholders (`YYYY-01-01`), so matching uses the birth year only.
-  - Club codes differ between files (INT/INTE), so the club is never part of the match key.
-  - Twins exist (same club, same birthdate), so two entries of one cup are never merged.
-- **Entry keys** are `${cupId}:${athleteid}`, with cupId = `${date}-${city-slug}`. Corrections refer to these keys, so they survive reloading files and adding new cups. Don't change the key format without a migration.
+  - The key uses the birth year only, because `YYYY-01-01` placeholders are common.
+  - The club is never in the key: codes vary (INT/INTE) and swimmers change clubs.
+  - Never merge two entries of the same cup (twins).
+- **Entry keys** are `${date}-${city-slug}:${athleteid}`. Corrections depend on them, so don't change the format without a migration.
+- **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 
-## Data
+## Personal data – strict
 
-`results/` contains the real result files: the current year at the top level and in cup folders,
-past years under `BEO Cup/Archiv/` (with SPLASH `.csv` exports and the official yearly PDFs).
-They hold personal data and are **git-ignored**. `src/core/__tests__/real-results.test.ts` finds
-every result `.lxf` (files with swim times) and checks each CSV's Mehrkampf column against our
-per-cup totals (2024–2026, ~600 swimmers). It is skipped when the folder is missing.
-**Never put real swimmer names or birthdates into committed files** – tests use fictional names
-and the real-data test asserts only structure and counts.
+- `results/` holds the real files, git-ignored:
+  - the current year at the top level and in `BEO Cup/2026-*`
+  - past years in `BEO Cup/Archiv/`, with SPLASH CSV exports and the official yearly PDFs
+- `.gitignore` also covers `*.lxf`, `*.lef`, exported `beocup-korrekturen-*.json` and `Regl_*.pdf`. The Reglement names a private person.
+- **Never commit real names, birthdates, clubs+names or contacts.** That includes tests, docs and commit messages.
+  - Use fictional names and dates.
+  - Before using a value, check it does not occur in the real files. Even a single real first name with a real birthdate is personal data.
+  - The real-data test asserts only counts and structure.
+- Before pushing, scan the tracked files against all names and birthdates extracted from `results/**/*.lxf`.
 
 ## Conventions
 
-- The UI language is German (Swiss: "ss" instead of "ß"). Code and comments are in English.
-- Keep domain logic in `src/core` and covered by tests that reference the requirement; views stay thin.
-- Commit messages: imperative, short. No AI co-author trailers.
+- The UI is in German (Swiss: "ss", not "ß"). Code and comments are in English.
+- Domain logic goes in `src/core` with tests that reference a requirement. Views stay thin.
+- Commit messages are imperative and short, with no AI co-author trailers.
