@@ -41,8 +41,11 @@ The labels are Mädchen/Knaben for Kat. V–III and Damen/Herren for Kat. II–I
 
 ## 4. Scoring
 
-- **Valid time:** a `swimtime` greater than 0 whose status is not DNS, DNF or WDR. A DSQ
-  time already contains the 3 s penalty, so it counts as is.
+- **Valid time:** a `swimtime` greater than 0 whose status is not DNS, DNF or WDR.
+- **DSQ:** the time counts with a **3 s penalty** (Reglement section 2). The LENEX
+  `swimtime` does *not* contain the penalty: SPLASH adds it only in its Mehrkampf list,
+  which was verified against the CSV exports of Aeschi and Thun. The penalty is applied
+  before the best 3 times are chosen.
 - **Gesamtzeit of one cup:**
   - Kat. V/IV: the sum of the 3 fastest valid times. At least 3 valid times are needed.
   - Kat. III–I: the sum of all 4 times. All 4 must be valid.
