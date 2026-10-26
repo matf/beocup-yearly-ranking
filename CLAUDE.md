@@ -45,7 +45,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - The key uses the birth year only, because `YYYY-01-01` placeholders are common.
   - The club is never in the key: codes vary (INT/INTE) and swimmers change clubs.
   - Never merge two entries of the same cup (twins).
-- **Clubs:** display names come from `clubs.ts` by code (the files have old names and typos). Matching never uses the club.
+- **Clubs:** display names come from `clubs.ts` by code, because the files have old names and typos. The official names are the ones in the Swiss Aquatics member list, see REQUIREMENTS §7. Matching never uses the club.
 - **Entry keys** are `${date}-${city-slug}:${athleteid}`. Corrections depend on them, so don't change the format without a migration.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 

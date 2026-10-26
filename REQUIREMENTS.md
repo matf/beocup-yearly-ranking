@@ -156,8 +156,11 @@ The exported file contains names, so it must never be committed.
        abgemeldet, ausser Konkurrenz, nur n gültige Zeiten)
 - The name shown is the one of the most recent cup.
 - **Clubs:** always the same six clubs take part. The files use varying codes and names for
-  them (renamings, typos), so the app shows each club's current name, derived from its code
-  (`src/core/clubs.ts`):
+  them: old names, old codes and typos. So the app shows each club's official name, derived
+  from its code (`src/core/clubs.ts`). The official names and codes are those of the
+  [Swiss Aquatics member list](https://www.swiss-aquatics.ch/verband/mitglieder/alle-mitgliedvereine/)
+  (checked October 2026). Schulsport Saanenland is not a Swiss Aquatics member; its name is
+  the one used in the Reglement.
 
   | Codes | Shown as |
   |---|---|
@@ -168,7 +171,16 @@ The exported file contains names, so it must never be committed.
   | SCSP | Schwimmclub Spiez |
   | THUN, SKT | Schwimmklub Thun |
 
-  An unknown code keeps the file's name. The entry table in Schwimmer:innen and Prüfen
+  Background on the variants:
+  - INTE and "(SK / Schwimmklub) Bödeli Interlaken" are the old code and name of Interlaken
+    Aquatics 1930.
+  - SKT is the old code of Schwimmklub Thun.
+  - "SC Delphin Uetendorf" is the short form of the Uetendorf name.
+  - "Schwimmclup Spiez" is a typo in the files.
+
+  An unknown code keeps the file's name. One case is Startgemeinschaft Berner Oberland (BEO),
+  the clubs' joint competition team and itself a Swiss Aquatics member, under which a few
+  swimmers were registered in 2024. The entry table in Schwimmer:innen and Prüfen
   still shows the name exactly as written in each file.
 
 ## 8. Quality
