@@ -5,12 +5,13 @@ import { cupsByDate, persons, state } from '../store'
 import PersonCard from '../components/PersonCard.vue'
 
 const query = ref('')
-const filter = ref<'all' | 'incomplete' | 'corrected'>('all')
+const filter = ref<'all' | 'complete' | 'incomplete' | 'corrected'>('all')
 
 const visible = computed(() => {
   const q = normalizeName(query.value)
   return persons.value.filter((p) => {
     if (q && !normalizeName(`${p.lastname} ${p.firstname} ${p.firstname} ${p.lastname} ${p.clubName}`).includes(q)) return false
+    if (filter.value === 'complete') return p.entries.length === cupsByDate.value.length
     if (filter.value === 'incomplete') return p.entries.length < cupsByDate.value.length
     if (filter.value === 'corrected') return p.entries.some((e) => state.corrections.overrides[e.key])
     return true
@@ -34,6 +35,7 @@ function toggle(id: string) {
       <input v-model="query" type="search" placeholder="Name oder Verein suchen …" />
       <select v-model="filter">
         <option value="all">Alle</option>
+        <option value="complete">An allen Cups</option>
         <option value="incomplete">Nicht an allen Cups</option>
         <option value="corrected">Korrigiert</option>
       </select>

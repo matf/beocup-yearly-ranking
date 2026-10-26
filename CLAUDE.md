@@ -17,6 +17,10 @@ LENEX result files (`.lxf`).
 
 TypeScript is pinned to 5.9 because vue-tsc does not support TypeScript 7 yet.
 
+Deployment: `.github/workflows/pages.yml` builds on every push to `main` and publishes `dist/`
+to GitHub Pages (https://matf.github.io/beocup-yearly-ranking/). Vite uses `base: './'`, so the
+build works under any sub-path. In CI the real-results test is skipped because `results/` is not in git.
+
 ## Layout
 
 - `src/core/`: pure domain logic. It imports no Vue, so it is unit-testable in Node.
