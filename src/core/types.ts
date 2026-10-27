@@ -74,3 +74,37 @@ export interface Person {
   /** current name of the club (see clubs.ts) from the most recent entry */
   clubName: string
 }
+
+/** One swimmer as entered by a club for an upcoming cup (Meldung). */
+export interface EntrySwimmer {
+  athleteId: string
+  firstname: string
+  lastname: string
+  birthdate: string
+  birthYear: number
+  gender: Gender
+  clubCode: string
+  clubName: string
+  /** individual 50m strokes entered, in the order of STROKES */
+  strokes: Stroke[]
+  /** strokes entered in an event of the other gender */
+  wrongGender: Stroke[]
+  /** entries in other events: 100m, 400m */
+  otherEvents: number
+}
+
+/** A club's entry file (LENEX from SPLASH Team Manager) for one cup. */
+export interface EntryFile {
+  /** `${meetId}:${fileName}` – loading a file of the same name again replaces it */
+  id: string
+  /** `${date}-${city}` slug, the same as the cup's id */
+  meetId: string
+  meetName: string
+  city: string
+  date: string
+  year: number
+  /** ISO creation time from the file, or its modification time */
+  created: string
+  fileName: string
+  swimmers: EntrySwimmer[]
+}

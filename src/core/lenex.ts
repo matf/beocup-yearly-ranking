@@ -1,10 +1,10 @@
 import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
-import type { Cup, Entry, Gender, Stroke, SwimResult } from './types'
+import type { Cup, Entry, EntryFile, EntrySwimmer, Gender, Stroke, SwimResult } from './types'
 import { STROKES } from './types'
 
 const ARRAY_TAGS = new Set([
-  'MEET', 'SESSION', 'EVENT', 'CLUB', 'ATHLETE', 'RESULT', 'AGEGROUP', 'RANKING', 'RELAY', 'HEAT',
+  'MEET', 'SESSION', 'EVENT', 'CLUB', 'ATHLETE', 'RESULT', 'AGEGROUP', 'RANKING', 'RELAY', 'HEAT', 'ENTRY',
 ])
 
 const parser = new XMLParser({
@@ -45,8 +45,26 @@ export async function readLenexXml(data: ArrayBuffer | Uint8Array): Promise<stri
 /** parsed XML node – LENEX is loosely typed, values are validated where used */
 type Node = any
 
-export function parseLenex(xml: string, fileName: string): Cup {
-  const doc = parser.parse(xml)
+/**
+ * What a LENEX file holds. SPLASH writes the same format for the announcement (Ausschreibung:
+ * no athletes), the clubs' entries (Meldungen: ENTRY elements) and the results (RESULT elements).
+ */
+export type LenexFile =
+  | { kind: 'results'; cup: Cup }
+  | { kind: 'entries'; entries: EntryFile }
+  | { kind: 'empty' }
+
+interface Meet {
+  node: Node
+  id: string
+  name: string
+  city: string
+  date: string
+  /** individual 50m events: eventid → stroke and event gender */
+  events: Map<string, { stroke: Stroke; gender: string }>
+}
+
+function readMeet(doc: Node): Meet {
   const meet: Node = doc?.LENEX?.MEETS?.MEET?.[0]
   if (!meet) throw new Error('Keine Veranstaltung (MEET) in der Datei gefunden.')
 
@@ -55,52 +73,108 @@ export function parseLenex(xml: string, fileName: string): Cup {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Datum der Veranstaltung fehlt.')
   const city: string = meet.city ?? ''
 
-  // map eventid -> stroke for the individual 50m events
-  const strokeByEvent = new Map<string, Stroke>()
+  const events = new Map<string, { stroke: Stroke; gender: string }>()
   for (const session of sessions) {
     for (const event of session.EVENTS?.EVENT ?? []) {
       const style = event.SWIMSTYLE
       if (style?.distance === '50' && style?.relaycount === '1' && STROKES.includes(style.stroke)) {
-        strokeByEvent.set(event.eventid, style.stroke)
+        events.set(event.eventid, { stroke: style.stroke, gender: event.gender ?? '' })
       }
     }
   }
+  return { node: meet, id: `${date}-${slug(city)}`, name: String(meet.name ?? ''), city, date, events }
+}
 
-  const id = `${date}-${slug(city)}`
-  const entries: Entry[] = []
-  for (const club of meet.CLUBS?.CLUB ?? []) {
-    for (const athlete of club.ATHLETES?.ATHLETE ?? []) {
-      const results: Partial<Record<Stroke, SwimResult>> = {}
-      for (const result of athlete.RESULTS?.RESULT ?? []) {
-        const stroke = strokeByEvent.get(result.eventid)
-        if (stroke) results[stroke] = { time: parseSwimTime(result.swimtime), status: result.status ?? '' }
-      }
-      const birthdate: string = athlete.birthdate ?? ''
-      entries.push({
-        key: `${id}:${athlete.athleteid}`,
-        cupId: id,
-        athleteId: String(athlete.athleteid),
-        firstname: String(athlete.firstname ?? '').trim(),
-        lastname: String(athlete.lastname ?? '').trim(),
-        birthdate,
-        birthYear: Number(birthdate.slice(0, 4)) || 0,
-        gender: (athlete.gender === 'F' ? 'F' : 'M') as Gender,
-        clubCode: String(club.code ?? ''),
-        clubName: String(club.name ?? club.shortname ?? ''),
-        results,
-      })
-    }
-  }
+function athletes(meet: Meet): { club: Node; athlete: Node }[] {
+  return (meet.node.CLUBS?.CLUB ?? []).flatMap((club: Node) =>
+    (club.ATHLETES?.ATHLETE ?? []).map((athlete: Node) => ({ club, athlete })),
+  )
+}
 
+function person(club: Node, athlete: Node) {
+  const birthdate: string = athlete.birthdate ?? ''
   return {
-    id,
-    name: String(meet.name ?? ''),
-    city,
-    date,
-    year: Number(date.slice(0, 4)),
-    fileName,
-    entries,
+    athleteId: String(athlete.athleteid),
+    firstname: String(athlete.firstname ?? '').trim(),
+    lastname: String(athlete.lastname ?? '').trim(),
+    birthdate,
+    birthYear: Number(birthdate.slice(0, 4)) || 0,
+    gender: (athlete.gender === 'F' ? 'F' : 'M') as Gender,
+    clubCode: String(club.code ?? ''),
+    clubName: String(club.name ?? club.shortname ?? ''),
   }
+}
+
+function resultsCup(meet: Meet, fileName: string): Cup {
+  const entries: Entry[] = athletes(meet).map(({ club, athlete }) => {
+    const results: Partial<Record<Stroke, SwimResult>> = {}
+    for (const result of athlete.RESULTS?.RESULT ?? []) {
+      const event = meet.events.get(result.eventid)
+      if (event) results[event.stroke] = { time: parseSwimTime(result.swimtime), status: result.status ?? '' }
+    }
+    const p = person(club, athlete)
+    return { key: `${meet.id}:${p.athleteId}`, cupId: meet.id, ...p, results }
+  })
+  return { id: meet.id, name: meet.name, city: meet.city, date: meet.date, year: Number(meet.date.slice(0, 4)), fileName, entries }
+}
+
+function entryFile(meet: Meet, fileName: string, created: string): EntryFile {
+  const swimmers: EntrySwimmer[] = athletes(meet).map(({ club, athlete }) => {
+    const strokes = new Set<Stroke>()
+    const wrongGender = new Set<Stroke>()
+    let otherEvents = 0
+    const p = person(club, athlete)
+    for (const entry of athlete.ENTRIES?.ENTRY ?? []) {
+      const event = meet.events.get(entry.eventid)
+      if (!event) {
+        otherEvents++
+        continue
+      }
+      strokes.add(event.stroke)
+      if (event.gender && event.gender !== p.gender) wrongGender.add(event.stroke)
+    }
+    const order = (list: Set<Stroke>) => STROKES.filter((s) => list.has(s))
+    return { ...p, strokes: order(strokes), wrongGender: order(wrongGender), otherEvents }
+  })
+  return {
+    id: `${meet.id}:${fileName}`,
+    meetId: meet.id,
+    meetName: meet.name,
+    city: meet.city,
+    date: meet.date,
+    year: Number(meet.date.slice(0, 4)),
+    created,
+    fileName,
+    swimmers,
+  }
+}
+
+/**
+ * Parses any BEO-Cup LENEX file. `fallbackCreated` (ISO date) is used when the file has no
+ * `created` attribute, e.g. the file's modification time.
+ */
+export function parseLenexFile(xml: string, fileName: string, fallbackCreated = ''): LenexFile {
+  const doc = parser.parse(xml)
+  const meet = readMeet(doc)
+  const list = athletes(meet)
+  if (list.some(({ athlete }) => athlete.RESULTS?.RESULT?.length)) return { kind: 'results', cup: resultsCup(meet, fileName) }
+  if (list.some(({ athlete }) => athlete.ENTRIES?.ENTRY?.length)) {
+    const created = String(doc.LENEX.created ?? '') || fallbackCreated
+    return { kind: 'entries', entries: entryFile(meet, fileName, created) }
+  }
+  return { kind: 'empty' }
+}
+
+export async function loadLenexFile(data: ArrayBuffer | Uint8Array, fileName: string, fallbackCreated = ''): Promise<LenexFile> {
+  return parseLenexFile(await readLenexXml(data), fileName, fallbackCreated)
+}
+
+/** A result file; entry and announcement files are rejected with a German message. */
+export function parseLenex(xml: string, fileName: string): Cup {
+  const file = parseLenexFile(xml, fileName)
+  if (file.kind === 'entries') throw new Error('Das ist eine Meldedatei (keine Resultate). Meldungen im Tab «Meldungen» laden.')
+  if (file.kind === 'empty') throw new Error('Die Datei enthält keine Resultate (Ausschreibung?).')
+  return file.cup
 }
 
 export async function loadCupFile(data: ArrayBuffer | Uint8Array, fileName: string): Promise<Cup> {

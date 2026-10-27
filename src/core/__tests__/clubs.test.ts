@@ -11,6 +11,7 @@ describe('REQ 7 – club names', () => {
   it('maps all codes of a club to its current name, ignoring case', () => {
     expect(clubName('INT', 'SK Bödeli Interlaken')).toBe('Interlaken Aquatics 1930')
     expect(clubName('INTE', 'Schwimmklub Bödeli Interlaken')).toBe('Interlaken Aquatics 1930')
+    expect(clubName('INTA', 'Interlaken Aquatics 1930')).toBe('Interlaken Aquatics 1930')
     expect(clubName('Scsp', 'Schwimmclup Spiez')).toBe('Schwimmclub Spiez')
     expect(clubName('SKT', 'Schwimmklub Thun')).toBe('Schwimmklub Thun')
   })

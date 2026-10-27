@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { loadCupFile } from '../lenex'
+import { loadLenexFile } from '../lenex'
 import { buildPersons, sharesCup } from '../matching'
 import { findIssues } from '../issues'
 import { categoryForAge, computeRanking, effectiveTime, isValidResult, scoreEntry } from '../scoring'
@@ -22,7 +22,9 @@ import { emptyCorrections } from '../corrections'
 import { normalizeName, similarity } from '../normalize'
 import { formatTime } from '../format'
 import { CLUBS } from '../clubs'
-import type { Cup, Entry, Stroke } from '../types'
+import { activeEntries, checkEntries } from '../entries'
+import { autoKey } from '../matching'
+import type { Cup, Entry, EntryFile, Stroke } from '../types'
 import { STROKES } from '../types'
 
 const DIR = resolve(__dirname, '../../../results')
@@ -185,7 +187,9 @@ describe.skipIf(lxfFiles.length === 0)('real results', () => {
 
   beforeAll(async () => {
     for (const f of lxfFiles) {
-      const cup = await loadCupFile(readFileSync(f), basename(f))
+      const file = await loadLenexFile(readFileSync(f), basename(f))
+      if (file.kind !== 'results') continue
+      const cup = file.cup
       if (!cup.entries.some((e) => Object.values(e.results).some((r) => r && r.time > 0))) continue
       resultFiles.set(f, cup)
       const list = years.get(cup.year) ?? []
@@ -345,5 +349,78 @@ describe.skipIf(lxfFiles.length === 0)('real results', () => {
     const ranking = computeRanking(cups, buildPersons(cups, corrections), corrections.settings)
     expect(ranking.final).toBe(false)
     expect(ranking.groups.reduce((n, g) => n + g.ranked.length, 0)).toBeGreaterThan(20)
+  })
+})
+
+/** every .lxf in results/ and meldungen/, including the entry folders the result tests skip */
+function walkAll(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name)
+    return statSync(path).isDirectory() ? walkAll(path) : [path]
+  })
+}
+const allLxf = [DIR, resolve(__dirname, '../../../meldungen')].flatMap(walkAll).filter((f) => /\.lxf$/i.test(f))
+
+describe.skipIf(allLxf.length === 0)('real entry files (Meldungen)', () => {
+  const entryFiles: EntryFile[] = []
+  const resultCups = new Map<string, Cup>()
+  const kinds = new Map<string, string>()
+
+  beforeAll(async () => {
+    for (const f of allLxf) {
+      const file = await loadLenexFile(readFileSync(f), basename(f), statSync(f).mtime.toISOString().slice(0, 19))
+      kinds.set(f, file.kind)
+      if (file.kind === 'entries' && !entryFiles.some((e) => e.id === file.entries.id && e.created === file.entries.created)) entryFiles.push(file.entries)
+      if (file.kind === 'results') resultCups.set(file.cup.id, file.cup)
+    }
+  })
+
+  it('recognises entry, result and announcement files', () => {
+    expect(entryFiles.length).toBeGreaterThan(40)
+    for (const [f, kind] of kinds) {
+      if (/\/meldungen\//i.test(f)) expect(kind, relative(DIR, f)).toBe('entries')
+      if (/ausschreibung/i.test(basename(f))) expect(kind, relative(DIR, f)).toBe('empty')
+      if (/^resultate/i.test(basename(f))) expect(kind, relative(DIR, f)).toBe('results')
+    }
+    expect(entryFiles.every((f) => f.swimmers.length > 0 && f.year >= 2023)).toBe(true)
+  })
+
+  it('reads the entered strokes of nearly every swimmer', () => {
+    const swimmers = entryFiles.flatMap((f) => f.swimmers)
+    expect(swimmers.filter((s) => s.strokes.length >= 3).length / swimmers.length).toBeGreaterThan(0.95)
+  })
+
+  it('replaces a club’s earlier entry file of the same cup with its newer one', () => {
+    expect(activeEntries(entryFiles).replaced.length).toBeGreaterThan(0)
+  })
+
+  it('finds nearly every swimmer entered for a past cup in that cup’s results', () => {
+    const cups = [...resultCups.values()]
+    const persons = buildPersons(cups, emptyCorrections())
+    const checks = checkEntries(entryFiles, cups, persons)
+    let entered = 0
+    let found = 0
+    for (const meet of checks) {
+      const results = resultCups.get(meet.meetId)
+      if (!results) continue
+      const started = new Set(results.entries.map(autoKey))
+      for (const c of meet.checks) {
+        entered++
+        if (started.has(autoKey({ ...c.swimmer, key: '', cupId: '', results: {} }))) found++
+        expect(c.match ?? c.findings.length, 'an unknown swimmer has a finding').toBeTruthy()
+      }
+    }
+    expect(entered).toBeGreaterThan(300)
+    // the rest withdrew before the cup or was corrected on the day
+    expect(found / entered).toBeGreaterThan(0.9)
+  })
+
+  it('reports problems for only a small share of the entries', () => {
+    const cups = [...resultCups.values()]
+    const checks = checkEntries(entryFiles, cups, buildPersons(cups, emptyCorrections())).flatMap((m) => m.checks)
+    const errors = checks.filter((c) => c.findings.some((f) => f.severity === 'error'))
+    expect(errors.length).toBeGreaterThan(0)
+    expect(errors.length / checks.length).toBeLessThan(0.1)
   })
 })

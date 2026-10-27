@@ -11,6 +11,8 @@ cup's Mehrkampf list into a separate SPLASH "Jahreswertung" meet. Comparing 2024
 showed that this process produced errors: wrong lists used, typing errors, swimmers split
 by name variants or club changes, and whole categories missing.
 
+It also checks the clubs' entries (Meldungen) for an upcoming cup (section 9).
+
 Out of scope: the relay Jahresmeisterschaft (§8.1), Tagessieger, editing race results,
 multiple users and logins.
 
@@ -43,6 +45,12 @@ parts matter for this app:
   between files, so events are identified by stroke.
 - A cup is identified by date + city (`2026-08-22-thun`); an entry by cup + LENEX
   `athleteid`.
+- SPLASH uses the same format for three kinds of file, told apart by content:
+  - result file: athletes with `RESULT` elements
+  - entry file (Meldung, from SPLASH Team Manager): athletes with `ENTRY` elements only
+  - announcement (Ausschreibung): no athletes
+
+  The Cups tab accepts only result files and names the kind of a rejected file.
 
 ## 4. Categories
 
@@ -155,6 +163,7 @@ The exported file contains names, so it must never be committed.
        to the leader
      - the non-eligible swimmers: each cup's outcome or the reason (nicht gestartet,
        abgemeldet, ausser Konkurrenz, nur n gültige Zeiten)
+  6. **Meldungen:** checks the entries for an upcoming cup, see section 9.
 - The name shown is the one of the most recent cup.
 - **Clubs:** always the same six clubs take part. The files use varying codes and names for
   them: old names, old codes and typos. So the app shows each club's official name, derived
@@ -165,7 +174,7 @@ The exported file contains names, so it must never be committed.
 
   | Codes | Shown as |
   |---|---|
-  | INT, INTE | Interlaken Aquatics 1930 |
+  | INT, INTA, INTE | Interlaken Aquatics 1930 |
   | UET | Schwimmclub Delphin Uetendorf |
   | SAAN | Schulsport Saanenland |
   | SCFR | Schwimmclub Frutigen |
@@ -174,7 +183,7 @@ The exported file contains names, so it must never be committed.
 
   Background on the variants:
   - INTE and "(SK / Schwimmklub) Bödeli Interlaken" are the old code and name of Interlaken
-    Aquatics 1930.
+    Aquatics 1930. INTA is the code in its 2026 entry files.
   - SKT is the old code of Schwimmklub Thun.
   - "SC Delphin Uetendorf" is the short form of the Uetendorf name.
   - "Schwimmclup Spiez" is a typo in the files.
@@ -199,5 +208,57 @@ The exported file contains names, so it must never be committed.
   - that every entry of a cup resembling a swimmer marked "not started" there is reported as a
     suspicious pair
   - matching, issue detection and the ranking
+  - the entry files: each file in a `Meldungen` folder is recognised as one, newer files replace
+    older ones, nearly every swimmer entered for a past cup is found in that cup's results, and
+    fewer than 10 % of the entries have errors
 - **No real personal data in the repository:** no names, birthdates or contacts of
   swimmers or officials, in code, tests, docs or commit messages.
+
+## 9. Checking entries (Meldungen)
+
+Before a cup, each club sends its entries as a LENEX file from SPLASH Team Manager. The tab
+**Meldungen** checks them. It is independent of the yearly ranking.
+
+### 9.1 Files
+- The tab accepts any LENEX file and recognises its kind (section 3):
+  - **entry files** are checked
+  - **result files of any year** become comparison results. They never count for the ranking.
+    A button copies the cups of the yearly ranking into them.
+  - announcements are rejected
+- Entry files differ from result files:
+  - one club per file, sometimes two (e.g. the Startgemeinschaft and a club)
+  - entries in other events (100 m, 400 m, relays), which are ignored
+  - the cup date comes from the `SESSION`, the creation time from the `LENEX created` attribute
+    (missing in older Team Manager versions: the file's modification time is used)
+- **Several files from one club for the same cup:** the newest file replaces the older ones
+  (by creation time, then by load order). Clubs are compared by their current name (section 7),
+  so INT and INTA are the same club. The file list shows which file replaced which.
+- Loading a file with the same name for the same cup again replaces it.
+- Entry files and comparison results are stored in the browser (`localStorage`) and can be
+  removed one by one or all at once.
+
+### 9.2 Checks per entered swimmer
+The category is computed from the cup year, as in section 4. The operator's corrections
+(section 6.4) also apply to the comparison results, because they are keyed by entry key.
+
+| Check | Severity |
+|---|---|
+| Kat. V/IV entered for fewer than 3 strokes | error, naming the missing strokes |
+| Kat. V/IV entered for 3 or more strokes, but Fly instead of Back, Breast or Free | warning (§5: V/IV swim Back, Breast, Free; Fly is optional) |
+| Kat. III–I not entered for all 4 strokes | error, naming the missing strokes |
+| No 50 m individual stroke, only other events | warning; nothing entered at all: error |
+| Entered in an event of the other gender | error |
+| Same name in the comparison results with another birth year or gender, and no exact match | error, naming the values and the most recent cup |
+| Exact match (name, birth year, gender), but another person with the same name and other data exists in the results | warning |
+| Exact match, but a different exact birthdate (placeholders ignored, as are birthdates whose year the operator corrected) | warning |
+| No exact match, but a similar name by the rules of section 6.2 (similar, swapped, same birthdate) | warning, naming the person found |
+| Entered twice for the same cup (two clubs, or twice in one file) | warning |
+| Not in the comparison results | info |
+| Placeholder birthdate (`YYYY-01-01`) | info |
+| Club code not one of the six clubs | info |
+
+### 9.3 Display
+- One table per cup, grouped by club: name, birth year, gender, category, the four strokes
+  (✓ entered, – missing, · Fly not required) and the findings.
+- Filters: only errors and warnings (default), only errors, all; search by name or club.
+- The tab shows the number of swimmers with an error or warning. The list can be printed.

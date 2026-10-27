@@ -11,7 +11,7 @@ describe('REQ 2 – input: LENEX files', () => {
   })
 
   it('reads an unzipped .lef file', async () => {
-    const xml = lenexXml('Spiez', '2026-06-06', [])
+    const xml = lenexXml('Spiez', '2026-06-06', [{ id: '1', first: 'Anna', last: 'Muster', birthdate: '2014-05-01', gender: 'F', results: FOUR }])
     const c = await loadCupFile(new TextEncoder().encode(xml), 'spiez.lef')
     expect(c.id).toBe('2026-06-06-spiez')
   })

@@ -3,7 +3,7 @@
  * the same club (renamings, typos), so the displayed name is derived from the club code.
  */
 export const CLUBS: { name: string; codes: string[] }[] = [
-  { name: 'Interlaken Aquatics 1930', codes: ['INT', 'INTE'] },
+  { name: 'Interlaken Aquatics 1930', codes: ['INT', 'INTA', 'INTE'] },
   { name: 'Schwimmclub Delphin Uetendorf', codes: ['UET'] },
   { name: 'Schulsport Saanenland', codes: ['SAAN'] },
   { name: 'Schwimmclub Frutigen', codes: ['SCFR'] },

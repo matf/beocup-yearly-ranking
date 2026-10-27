@@ -39,7 +39,7 @@ function differences(a: Person, b: Person): string[] {
 }
 
 /** `YYYY-01-01` is a common placeholder in the result files, so it says nothing about identity. */
-function realBirthdates(p: Person): Set<string> {
+export function realBirthdates(p: Person): Set<string> {
   return new Set(p.entries.map((e) => e.birthdate).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !d.endsWith('-01-01')))
 }
 
@@ -48,7 +48,7 @@ function sharedBirthdate(a: Person, b: Person): string | undefined {
   return [...realBirthdates(b)].find((d) => dates.has(d))
 }
 
-function classifyPair(a: Person, b: Person): IssueType | null {
+export function classifyPair(a: Person, b: Person): IssueType | null {
   const al = normalizeName(a.lastname)
   const af = normalizeName(a.firstname)
   const bl = normalizeName(b.lastname)

@@ -25,7 +25,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
 ## Layout
 
 - `src/core/`: pure domain logic. It imports no Vue.
-  - `lenex.ts`: unzips the file (JSZip) and parses it (fast-xml-parser) into `Cup`/`Entry`.
+  - `lenex.ts`: unzips the file (JSZip), parses it (fast-xml-parser) and tells result files (`Cup`), entry files (`EntryFile`) and announcements apart.
   - `normalize.ts`: name normalization and similarity.
   - `matching.ts`: groups entries into `Person`s: manual merges first, then the auto key.
   - `issues.ts`: suspicious entries (REQUIREMENTS §6.2).
@@ -33,9 +33,10 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - `scoring.ts`: categories, the per-cup outcome (`ok|absent|withdrawn|exhibition|incomplete`) and the ranking.
   - `format.ts`: German labels and times.
   - `clubs.ts`: the six clubs; maps file club codes to the current club name for display.
+  - `entries.ts`: the Meldungen checks (REQUIREMENTS §9): newest file per cup and club, disciplines per category, cross-check against the comparison results.
   - `__tests__/`: one `describe` per requirement. `fixtures.ts` builds synthetic LENEX files. `real-results.test.ts` is the local real-data check.
-- `src/store.ts`: reactive state. Cups and corrections live in `localStorage`; persons, issues and ranking are `computed`.
-- `src/views/`: the tabs Cups, Prüfen, Schwimmer:innen, Rangliste, Druck.
+- `src/store.ts`: reactive state. Cups, corrections and the Meldungen tab's files live in `localStorage`; persons, issues, ranking and entry checks are `computed`.
+- `src/views/`: the tabs Cups, Prüfen, Schwimmer:innen, Rangliste, Druck, Meldungen (`EntriesView`).
 - `src/components/`: shared components.
 
 ## Easy to get wrong
@@ -55,11 +56,16 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - Times in `( )` don't count, and `*` marks a DSQ.
   - Tied swimmers after the first have no rank number.
   - Preliminary lists printed on the day can differ from the final ones.
+- **Meldungen:**
+  - Entry files have `ENTRY` instead of `RESULT`; announcements have no athletes. Only result files may become cups.
+  - The Meldungen tab has its own state (`state.entries`: entry files and comparison cups of any year). It never feeds the ranking.
+  - Kat. V/IV must enter Back, Breast and Free; Fly is optional. Fly in place of one of them is a warning, not an error.
+  - The newest file per cup and club wins, by `LENEX created`, then load order. Compare clubs by `clubName()`, not by code.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 
 ## Personal data – strict
 
-- `results/` holds the real files, git-ignored:
+- `results/` and `meldungen/` hold the real files, git-ignored:
   - the current year at the top level and in `BEO Cup/2026-*`
   - past years in `BEO Cup/Archiv/`, with SPLASH CSV exports and the official yearly PDFs
 - `.gitignore` also covers `*.lxf`, `*.lef`, exported `beocup-korrekturen-*.json` and `Regl_*.pdf`. The Reglement names a private person.
@@ -67,7 +73,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - Use fictional names and dates.
   - Before using a value, check it does not occur in the real files. Even a single real first name with a real birthdate is personal data.
   - The real-data test asserts only counts and structure.
-- Before pushing, scan the tracked files against all names and birthdates extracted from `results/**/*.lxf`.
+- Before pushing, scan the tracked files against all names and birthdates extracted from `results/**/*.lxf` and `meldungen/**/*.lxf`.
 
 ## Conventions
 

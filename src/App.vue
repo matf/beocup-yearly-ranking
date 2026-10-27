@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { issues, ranking, state } from './store'
+import { entryProblemCount, issues, ranking, state } from './store'
 import CupsView from './views/CupsView.vue'
 import IssuesView from './views/IssuesView.vue'
 import SwimmersView from './views/SwimmersView.vue'
 import RankingView from './views/RankingView.vue'
 import PrintView from './views/PrintView.vue'
+import EntriesView from './views/EntriesView.vue'
 
-type Tab = 'cups' | 'issues' | 'swimmers' | 'ranking' | 'print'
+type Tab = 'cups' | 'issues' | 'swimmers' | 'ranking' | 'print' | 'entries'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'cups', label: 'Cups' },
@@ -15,6 +16,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'swimmers', label: 'Schwimmer:innen' },
   { id: 'ranking', label: 'Rangliste' },
   { id: 'print', label: 'Druck' },
+  { id: 'entries', label: 'Meldungen' },
 ]
 
 function initialTab(): Tab {
@@ -42,6 +44,7 @@ function select(id: Tab) {
       <button v-for="t in TABS" :key="t.id" :class="{ active: tab === t.id }" @click="select(t.id)">
         {{ t.label }}
         <span v-if="t.id === 'issues' && issues.length" class="badge warn">{{ issues.length }}</span>
+        <span v-if="t.id === 'entries' && entryProblemCount" class="badge warn">{{ entryProblemCount }}</span>
       </button>
     </nav>
   </header>
@@ -51,7 +54,8 @@ function select(id: Tab) {
     <IssuesView v-else-if="tab === 'issues'" />
     <SwimmersView v-else-if="tab === 'swimmers'" />
     <RankingView v-else-if="tab === 'ranking'" />
-    <PrintView v-else />
+    <PrintView v-else-if="tab === 'print'" />
+    <EntriesView v-else />
   </main>
 
   <div class="messages no-print">
