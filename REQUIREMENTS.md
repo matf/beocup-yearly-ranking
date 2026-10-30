@@ -305,4 +305,4 @@ browser.
   - all events of the announcement; one `ENTRY` with entry time per entered 50 m stroke, using
     the announcement's event id for the stroke and the swimmer's gender
   - the generated file is added to the checks (9.2) at once
-- Whether the Meet Manager imports the file must be verified on the first real import.
+- Verified: the generated file imports into the SPLASH Meet Manager (Gstaad 2026, October 2026).
