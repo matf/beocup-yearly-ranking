@@ -111,7 +111,7 @@ LENEX                     version, created, revisiondate
 
 ### Times
 
-- `swimtime` and `entrytime` are `HH:MM:SS.hh`, e.g. `00:00:37.42`, `00:01:05.30`.
+- `swimtime` and `entrytime` are `HH:MM:SS.hh`, e.g. `00:00:38.17`, `00:01:05.30`.
 - `00:00:00.00` means no time: a result with DNS/WDR, or an entry without entry time
   (`MEETINFO qualificationtime="NT"`).
 - `entrycourse="LCM"` on a result: the entry time was swum in a 50 m pool.
@@ -216,7 +216,7 @@ file of this shape:
           <ATHLETES>
             <ATHLETE athleteid="1" lastname="Zaugglin" firstname="Fiorella" gender="F" birthdate="2014-01-01">
               <ENTRIES>
-                <ENTRY eventid="1064" entrytime="00:00:41.50" />
+                <ENTRY eventid="1064" entrytime="00:00:42.35" />
               </ENTRIES>
             </ATHLETE>
           </ATHLETES>
