@@ -451,6 +451,10 @@ describe.skipIf(wordForms.length === 0)('real Word entry forms (Gstaad)', () => 
         expect(Object.keys(r.times).length).toBeGreaterThanOrEqual(3)
         expect(r.birthYear).toBeGreaterThan(2000)
       }
+      // nothing that looks like a swimmer is skipped: ignored lines are titles, headers, relays, remarks
+      for (const line of form.ignored) {
+        expect(/anmeldung|staffel|team|freistil|vierlagen|^name|\bRü\b/i.test(line) || !/\d{2}[.:]\d/.test(line), line.replace(/\p{L}{3,}/gu, '…')).toBe(true)
+      }
       rows += form.rows.length
     }
     expect(rows).toBeGreaterThan(50)

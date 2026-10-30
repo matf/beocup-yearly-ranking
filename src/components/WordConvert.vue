@@ -15,12 +15,17 @@ const CLUB = { code: 'SAAN', name: CLUBS.find((c) => c.codes.includes('SAAN'))!.
 interface Row extends FormSwimmer {
   /** the time cells as typed */
   texts: Record<Stroke, string>
+  /** the operator confirmed the questions of this row */
+  confirmed: boolean
+  /** problems of the row structure (e.g. too many times); cleared once a time is edited */
+  structural: string[]
 }
 
 const meet = ref<MeetTemplate | null>(null)
 const formName = ref('')
 const formTitle = ref('')
 const rows = ref<Row[]>([])
+const ignored = ref<string[]>([])
 
 async function onAnnouncement(e: Event) {
   const input = e.target as HTMLInputElement
@@ -52,10 +57,12 @@ async function onForm(e: Event) {
     }
     formName.value = file.name
     formTitle.value = form.title
+    ignored.value = form.ignored
     rows.value = prepareSwimmers(form.rows, entryPersons.value).map((s) => ({
       ...s,
-      // structural problems stay visible as notes; only the time cells are re-checked while editing
-      notes: [...s.notes, ...s.errors.filter((x) => !x.startsWith('Zeit'))],
+      // unreadable times, the year and the name are re-checked live while editing
+      structural: s.errors.filter((x) => !/^(Zeit|Jahrgang|Nachname)/.test(x)),
+      confirmed: false,
       texts: Object.fromEntries(STROKES.map((st) => [st, s.times[st] ? formatTime(s.times[st]!) : ''])) as Record<Stroke, string>,
     }))
   } catch (err) {
@@ -65,6 +72,7 @@ async function onForm(e: Event) {
 
 function setTime(row: Row, stroke: Stroke, text: string) {
   row.texts[stroke] = text
+  row.structural = []
   const { time } = parseEntryTime(text)
   if (time === null) delete row.times[stroke]
   else row.times[stroke] = time
@@ -78,13 +86,18 @@ function setYear(row: Row, value: string) {
 }
 
 const timeError = (row: Row, stroke: Stroke) => parseEntryTime(row.texts[stroke]).error
+/** what must be fixed before the download: nothing is filled in by guessing */
 const rowErrors = (row: Row) => [
-  ...(row.gender ? [] : ['Geschlecht fehlt']),
+  ...(row.gender ? [] : ['Geschlecht fehlt: bitte wählen']),
+  ...(row.birthYear ? [] : ['Jahrgang fehlt: bitte eintragen']),
   ...STROKES.map((st) => timeError(row, st)).filter((x): x is string => !!x),
+  ...(STROKES.some((st) => row.times[st]) ? [] : ['Keine Zeit gemeldet']),
   ...(row.lastname.trim() && row.firstname.trim() ? [] : ['Name unvollständig']),
+  ...row.structural,
 ]
 const problems = computed(() => rows.value.filter((r) => rowErrors(r).length).length)
-const ready = computed(() => !!meet.value && rows.value.length > 0 && problems.value === 0)
+const openQuestions = computed(() => rows.value.filter((r) => r.questions.length && !r.confirmed).length)
+const ready = computed(() => !!meet.value && rows.value.length > 0 && problems.value === 0 && openQuestions.value === 0)
 const fileBase = computed(() => (meet.value ? `Meldung ${CLUB.code} ${meet.value.name || meet.value.city}` : ''))
 
 function removeRow(row: Row) {
@@ -159,7 +172,7 @@ async function download() {
               <td class="muted">{{ r.row }}</td>
               <td><input v-model="r.lastname" class="name" /></td>
               <td><input v-model="r.firstname" class="name" /></td>
-              <td><input :value="r.birthYear" class="year" inputmode="numeric" @change="setYear(r, ($event.target as HTMLInputElement).value)" /></td>
+              <td><input :value="r.birthYear || ''" class="year" :class="{ invalid: !r.birthYear }" inputmode="numeric" @change="setYear(r, ($event.target as HTMLInputElement).value)" /></td>
               <td>
                 <select v-model="r.gender" :class="{ invalid: !r.gender }">
                   <option value="">–</option>
@@ -179,17 +192,26 @@ async function download() {
               </td>
               <td class="notes">
                 <div v-for="(e, i) in rowErrors(r)" :key="'e' + i" class="error">{{ e }}</div>
-                <div v-for="(n, i) in r.notes" :key="'n' + i" class="warning">{{ n }}</div>
-                <div v-if="r.birthdate.endsWith('-01-01')" class="muted">Geburtsdatum: nur Jahrgang</div>
+                <template v-if="r.questions.length">
+                  <div v-for="(q, i) in r.questions" :key="'q' + i" class="warning">{{ q }}</div>
+                  <label class="confirm"><input v-model="r.confirmed" type="checkbox" /> geprüft, stimmt so</label>
+                </template>
+                <div v-for="(n, i) in r.info" :key="'i' + i" class="muted">{{ n }}</div>
+                <div v-if="r.birthdate.endsWith('-01-01')" class="muted">Geburtsdatum: nur Jahrgang bekannt</div>
               </td>
               <td><button class="link danger" @click="removeRow(r)">Entfernen</button></td>
             </tr>
           </tbody>
         </table>
       </div>
+      <details v-if="ignored.length" class="ignored">
+        <summary>{{ ignored.length }} Zeilen nicht übernommen (Titel, Kopfzeile, Staffeln …) – prüfen, ob niemand fehlt</summary>
+        <ul><li v-for="(l, i) in ignored" :key="i">{{ l }}</li></ul>
+      </details>
       <div class="row">
         <span v-if="!meet" class="badge error">Ausschreibung fehlt</span>
-        <span v-if="problems" class="badge error">{{ problems }} Zeilen unvollständig</span>
+        <span v-if="problems" class="badge error">{{ problems }} Zeilen mit Fehlern</span>
+        <span v-if="openQuestions" class="badge warn">{{ openQuestions }} Rückfragen offen</span>
         <span class="spacer" />
         <button :disabled="!ready" @click="download">Lenex herunterladen und prüfen</button>
       </div>
@@ -216,4 +238,7 @@ async function download() {
 .notes { font-size: .85rem; min-width: 12rem; }
 .notes .error { color: var(--error); }
 .notes .warning { color: var(--warn); }
+.confirm { display: flex; gap: .3rem; align-items: center; color: var(--warn); font-weight: bold; }
+.ignored { margin: .75rem 0; font-size: .9rem; }
+.ignored ul { margin: .4rem 0; color: var(--muted); }
 </style>

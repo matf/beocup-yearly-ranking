@@ -209,8 +209,9 @@ The exported file contains names, so it must never be committed.
   - that every entry of a cup resembling a swimmer marked "not started" there is reported as a
     suspicious pair
   - matching, issue detection and the ranking
-  - the Word forms: every swimmer line is read with 3–4 readable strokes, over 90 % get their
-    gender from the results, and the generated entry file reads back with the same strokes
+  - the Word forms: every swimmer line is read with 3–4 readable strokes and no error, no
+    swimmer line is among the ignored lines, over 90 % get their gender from the results, and
+    the generated entry file reads back with the same strokes
   - the entry files: each file in a `Meldungen` folder is recognised as one, newer files replace
     older ones, nearly every swimmer entered for a past cup is found in that cup's results, and
     fewer than 10 % of the entries have errors
@@ -276,22 +277,29 @@ browser.
      numbers. Other files are rejected there.
   2. the Word form (`.doc` Word 97–2003, or `.docx`)
 - **Form:** one line per swimmer, `Lastname Firstname <tab> YY <tab> Fly <tab> Back <tab>
-  Breast <tab> Free`. Title, header and relay lines are ignored; **relays are not converted**.
-  - The year has two digits (`09` = 2009).
-  - `---`, `x` and empty cells: not entered. A stray tab (an empty cell beyond the fourth) is
-    dropped.
-  - Times like `37.40`, `47.5`, `1:04.3`; typos like `42.18j` or `52:00` (= 52.00) are read
-    with a note; unreadable times are errors.
+  Breast <tab> Free`. The year has two digits (`09` = 2009). `---`, `x` and empty cells mean
+  not entered. Relays are not converted.
+- **Nothing uncertain is filled in silently.** Each row shows three kinds of message:
+
+  | Kind | Cases | Effect |
+  |---|---|---|
+  | Error | gender unknown; year missing or unreadable; unreadable time; more than 4 times; no time; name of one word | must be fixed in the table |
+  | Question | a typo read as a time (`42.18j` → 42.18, `52:00` → 52.00); a stray empty cell dropped (times may be shifted); an unknown name of 3+ words split before the last word; the name found in the results only with another birth year | must be confirmed per row («geprüft, stimmt so») or fixed |
+  | Info | not in the comparison results; birthdate only as year | none |
+
+  The download is possible only without errors and with every question confirmed.
+- A line with a name and at least two times but no readable year is kept as a row with an
+  error, never dropped. All lines that are not taken over (title, header, relays, remarks) are
+  listed so the operator can check that nobody is missing.
 - **Prepared from the comparison results** (section 9.1), because the form has no gender or
   birthdate:
-  - The name is split where last and first name match a person in the results, otherwise
-    before the last word.
-  - Gender from the results. Unknown swimmers, or a name found with both genders, get no
-    gender: the operator must choose it.
-  - Birthdate: the real one from the results with the same birth year, otherwise `YYYY-01-01`.
-  - A birth year that differs from the results is noted; the form's year is kept.
-- **Editing:** name, birth year, gender and the times can be edited, rows removed. The download
-  is possible only when every row has a gender, a name and readable times.
+  - The name is split where last and first name match a person in the results; otherwise
+    before the last word (a question for 3+ words).
+  - Gender only from a person with the same name **and birth year** and a single gender.
+    Otherwise the operator chooses it.
+  - Birthdate: the real one from such a person, otherwise `YYYY-01-01`, the usual placeholder of
+    the SPLASH files for "year only".
+- **Editing:** name, birth year, gender and the times can be edited, rows removed.
 - **Output:** `Meldung SAAN <meet>.lxf`, a zipped LENEX like a Team Manager export:
   - club **SAAN / Schulsport Saanenland**, as in the results
   - all events of the announcement; one `ENTRY` with entry time per entered 50 m stroke, using

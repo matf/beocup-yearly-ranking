@@ -64,7 +64,8 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - Kat. V/IV must enter Back, Breast and Free; Fly is optional. Fly in place of one of them is a warning, not an error.
   - The newest file per cup and club wins, by `LENEX created`, then load order. Compare clubs by `clubName()`, not by code.
 - **Word forms (Gstaad):**
-  - No gender and no birthdate in the form: both come from the comparison results, otherwise the operator chooses.
+  - Never guess: missing values are errors, interpretations (typos, stray tabs, name splits, other birth year) are questions the operator confirms. Lines are never dropped silently.
+  - No gender and no birthdate in the form: gender only from a result person with the same name and birth year, otherwise the operator chooses.
   - The Ausschreibung is uploaded explicitly in the converter; event ids and numbers come from it. Club is always SAAN.
   - Relays are not converted. Tests build `.doc`/`.docx` files synthetically (`fixtures.ts`), never commit real forms.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.

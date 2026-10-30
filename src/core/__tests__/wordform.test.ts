@@ -59,19 +59,48 @@ describe('REQ 9.5 – reading Word entry forms', () => {
     expect(first.times).toEqual({ FLY: 3715, BACK: 4122, BREAST: 4481, FREE: 3247 })
   })
 
-  it('treats ---, x and empty cells as not entered and ignores stray tabs', () => {
+  it('treats ---, x and empty cells as not entered', () => {
     const rows = parseWordForm(FORM).rows
     expect(rows[1].times).toEqual({ BACK: 7200, BREAST: 8100, FREE: 6400 })
-    expect(rows[2].times).toEqual({ BACK: 4900, BREAST: 5600, FREE: 4237 })
     expect(rows[3].times).toEqual({ BACK: 5283, BREAST: 5714, FREE: 4362 })
-    expect(rows.slice(0, 4).every((r) => r.errors.length === 0 && r.notes.length === 0)).toBe(true)
+    expect([rows[0], rows[1], rows[3]].every((r) => r.errors.length === 0 && r.questions.length === 0)).toBe(true)
   })
 
-  it('reads typos with a note', () => {
+  it('drops a stray empty cell but asks to check the strokes', () => {
+    const row = parseWordForm(FORM).rows[2]
+    expect(row.times).toEqual({ BACK: 4900, BREAST: 5600, FREE: 4237 })
+    expect(row.questions).toEqual([expect.stringContaining('Zuordnung der Zeiten')])
+  })
+
+  it('reads typos only as a question to confirm', () => {
     const row = parseWordForm(FORM).rows[4]
     expect(row.times).toEqual({ FLY: 4327, BACK: 4700, BREAST: 5100, FREE: 3800 })
-    expect(row.notes).toHaveLength(2)
+    expect(row.questions).toEqual(['«43.27j» gelesen als 43.27', '«51:00» gelesen als 51.00'])
     expect(row.errors).toEqual([])
+  })
+
+  it('keeps a line with a missing or unreadable year as an error instead of dropping it', () => {
+    const form = parseWordForm(['Zaugglin Fiorella\t\t37.15\t41.22\t44.81\t32.47', 'Brändlimann Elio\tO9\t38.00\t41.00\t45.00\t33.00', 'Kehrlimann Juri\t37.15\t41.22\t44.81\t32.47'].join('\r'))
+    expect(form.rows.map((r) => [r.birthYear, r.errors])).toEqual([
+      [0, ['Jahrgang fehlt']],
+      [0, ['Jahrgang «O9» nicht lesbar']],
+      [0, ['Jahrgang fehlt']],
+    ])
+    expect(form.rows[2].times).toEqual({ FLY: 3715, BACK: 4122, BREAST: 4481, FREE: 3247 })
+  })
+
+  it('reports more than 4 times as an error', () => {
+    const [row] = parseWordForm('Zaugglin Fiorella\t13\t37.15\t41.22\t44.81\t32.47\t35.00').rows
+    expect(row.errors).toEqual([expect.stringContaining('5 Zeiten')])
+  })
+
+  it('lists the lines it did not take over', () => {
+    expect(parseWordForm(FORM).ignored).toEqual([
+      'Anmeldung BeO – Cup aus Saanen',
+      'De  Rü  Br  Cr',
+      'Staffeln:',
+      'Team1:  Vierlagen: 2:40.0  Freistil: 2:15.0',
+    ])
   })
 
   it('reports unreadable times as errors', () => {
@@ -91,21 +120,40 @@ describe('REQ 9.6 – preparing the swimmers', () => {
   const swimmers = prepareSwimmers(parseWordForm(FORM).rows, buildPersons([results], corrections()))
 
   it('takes gender and real birthdate from the results', () => {
-    expect(swimmers[0]).toMatchObject({ lastname: 'Zaugglin', firstname: 'Fiorella', gender: 'F', birthdate: '2013-02-14', known: true, notes: [] })
+    expect(swimmers[0]).toMatchObject({ lastname: 'Zaugglin', firstname: 'Fiorella', gender: 'F', birthdate: '2013-02-14', known: true, questions: [], errors: [], info: [] })
   })
 
   it('finds a two-word last name in the results', () => {
     expect(swimmers[2]).toMatchObject({ lastname: 'De Vriesli', firstname: 'Tamsin', gender: 'M', birthdate: '2016-01-01' })
   })
 
-  it('splits unknown names before the last word and leaves the gender open', () => {
-    expect(swimmers[1]).toMatchObject({ lastname: 'Brändlimann', firstname: 'Elio', gender: '', known: false, birthdate: '2012-01-01' })
-    expect(swimmers[1].notes).toEqual(['Nicht in den Vergleichs-Resultaten'])
+  it('leaves the gender of an unknown swimmer open', () => {
+    expect(swimmers[1]).toMatchObject({ lastname: 'Brändlimann', firstname: 'Elio', gender: '', known: false, birthdate: '2012-01-01', questions: [] })
+    expect(swimmers[1].info).toEqual(['Nicht in den Vergleichs-Resultaten'])
   })
 
-  it('notes a birth year that differs from the results', () => {
-    expect(swimmers[3]).toMatchObject({ gender: 'F', birthYear: 2014, birthdate: '2014-01-01' })
-    expect(swimmers[3].notes).toEqual(['In den Resultaten mit Jahrgang 2013'])
+  it('asks about a birth year that differs from the results and does not take the gender over', () => {
+    expect(swimmers[3]).toMatchObject({ gender: '', birthYear: 2014, birthdate: '2014-01-01' })
+    expect(swimmers[3].questions).toEqual(['In den Resultaten mit Jahrgang 2013, F: Jahrgang prüfen'])
+  })
+
+  it('asks how to split an unknown name of three words', () => {
+    const [s3] = prepareSwimmers(parseWordForm('Zaugglin Fiorella Ilvy\t13\t37.15\t41.22\t44.81\t32.47').rows, [])
+    expect(s3).toMatchObject({ lastname: 'Zaugglin Fiorella', firstname: 'Ilvy', gender: '' })
+    expect(s3.questions).toEqual([expect.stringContaining('Aufteilung')])
+  })
+
+  it('a name of one word and a missing year are errors, not guesses', () => {
+    const [one, noYear] = prepareSwimmers(parseWordForm('Zaugglin\t13\t37.15\t41.22\t44.81\t32.47\rBrändlimann Elio\t\t37.15\t41.22\t44.81\t32.47').rows, [])
+    expect(one.errors).toEqual(['Nachname oder Vorname fehlt'])
+    expect(noYear).toMatchObject({ birthYear: 0, birthdate: '', errors: ['Jahrgang fehlt'] })
+  })
+
+  it('does not take a gender over when the results know the name with both genders', () => {
+    const both = cup('Spiez', '2026-06-06', [{ id: '9', first: 'Fiorella', last: 'Zaugglin', birthdate: '2013-03-01', gender: 'M', club: 'SAAN', results: FOUR }])
+    const [s0] = prepareSwimmers(parseWordForm(FORM).rows, buildPersons([results, both], corrections()))
+    expect(s0.gender).toBe('')
+    expect(s0.info).toContain('In den Resultaten mit beiden Geschlechtern')
   })
 })
 

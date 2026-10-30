@@ -14,35 +14,46 @@ export interface FormRow {
   row: number
   /** "Lastname Firstname" as written */
   name: string
+  /** 0 if missing or unreadable */
   birthYear: number
   /** entry times in hundredths; a stroke without time is not entered */
   times: Partial<Record<Stroke, number>>
-  /** German notes about interpreted cells */
-  notes: string[]
-  /** German problems the operator must fix */
+  /** German: what was read in a way the operator must confirm (typos, shifted columns) */
+  questions: string[]
+  /** German: what the operator must fix; nothing is guessed for these */
   errors: string[]
 }
 
 export interface WordForm {
   title: string
   rows: FormRow[]
+  /** non-empty lines that are no swimmer lines (title, header, relays), shown for checking */
+  ignored: string[]
 }
 
-/** A form row prepared for the entry file; the operator can edit every field. */
+/**
+ * A form row prepared for the entry file; the operator can edit every field. Nothing uncertain
+ * is filled in silently: missing values are errors, interpretations are questions to confirm.
+ */
 export interface FormSwimmer {
   row: number
   lastname: string
   firstname: string
+  /** 0 if missing: the operator must enter it */
   birthYear: number
-  /** real birthdate from the results, otherwise `YYYY-01-01` */
+  /** real birthdate from the results with the same birth year, otherwise `YYYY-01-01` (year only) */
   birthdate: string
-  /** empty until known from the results or chosen by the operator */
+  /** set only if the results know this swimmer with the same birth year and one gender */
   gender: Gender | ''
   times: Partial<Record<Stroke, number>>
   /** found in the comparison results */
   known: boolean
-  notes: string[]
+  /** German: to be confirmed by the operator */
+  questions: string[]
+  /** German: to be fixed by the operator */
   errors: string[]
+  /** German: for information */
+  info: string[]
 }
 
 const isZip = (b: Uint8Array) => b[0] === 0x50 && b[1] === 0x4b
@@ -120,10 +131,11 @@ async function docxText(bytes: Uint8Array): Promise<string> {
 }
 
 /**
- * Entry time as written in the form: "37.40", "47.5", "1:04.3"; typos such as "42.18j" or
- * "52:00" (for 52.00) are read with a note. "---", "x" and empty cells mean not entered.
+ * Entry time as written in the form: "37.40", "47.5", "1:04.3". A typo such as "42.18j" or
+ * "52:00" (for 52.00) is read with a `question` the operator must confirm. "---", "x" and empty
+ * cells mean not entered.
  */
-export function parseEntryTime(raw: string): { time: number | null; note?: string; error?: string } {
+export function parseEntryTime(raw: string): { time: number | null; question?: string; error?: string } {
   const text = raw.trim()
   if (!text || /^(-+|x)$/i.test(text)) return { time: null }
   const cleaned = text.replace(',', '.').replace(/[^0-9:.]/g, '')
@@ -131,58 +143,78 @@ export function parseEntryTime(raw: string): { time: number | null; note?: strin
   let m = /^(\d{2})[.:](\d{1,2})$/.exec(cleaned)
   if (m && Number(m[1]) >= 15) {
     const time = Number(m[1]) * 100 + Number(m[2].padEnd(2, '0'))
-    return { time, note: (note || cleaned.includes(':')) ? `«${text}» gelesen als ${m[1]}.${m[2].padEnd(2, '0')}` : undefined }
+    return { time, question: (note || cleaned.includes(':')) ? `«${text}» gelesen als ${m[1]}.${m[2].padEnd(2, '0')}` : undefined }
   }
   m = /^(\d{2})$/.exec(cleaned)
-  if (m && Number(m[1]) >= 15) return { time: Number(m[1]) * 100, note: note ? `${note}${m[1]}.00` : undefined }
+  if (m && Number(m[1]) >= 15) return { time: Number(m[1]) * 100, question: note ? `${note}${m[1]}.00` : undefined }
   m = /^(\d):(\d{2})(?:[.:](\d{1,2}))?$/.exec(cleaned)
   if (m && Number(m[2]) < 60) {
     const time = (Number(m[1]) * 60 + Number(m[2])) * 100 + Number((m[3] ?? '0').padEnd(2, '0'))
-    return { time, note: note ? `${note}${m[1]}:${m[2]}.${(m[3] ?? '0').padEnd(2, '0')}` : undefined }
+    return { time, question: note ? `${note}${m[1]}:${m[2]}.${(m[3] ?? '0').padEnd(2, '0')}` : undefined }
   }
   return { time: null, error: `Zeit «${text}» nicht lesbar` }
 }
 
-/** Reads the swimmer lines of a form; relay and other lines are ignored. */
+/** a cell that is clearly a time, as written in the form (not "Vierlagen: 2:40.0") */
+const TIME_CELL = /^\s*(\d:)?\d{2}[.,:]\d{1,2}\s*$/
+
+/**
+ * Reads the swimmer lines of a form. A swimmer line has a name and a two- or four-digit birth
+ * year, or a name and at least two times (then the year is missing: an error, not a guess).
+ * All other non-empty lines are returned as `ignored`, so the operator can see what was skipped.
+ */
 export function parseWordForm(text: string): WordForm {
   const lines = text.split(/\r\n|\r|\n|\x0b/)
   const title = (lines.find((l) => /anmeldung/i.test(l)) ?? lines.find((l) => l.trim()) ?? '').trim()
   const rows: FormRow[] = []
+  const ignored: string[] = []
   for (const line of lines) {
     const fields = line.split('\t')
     const year = fields[1]?.trim() ?? ''
-    if (!/^(\d{2}|\d{4})$/.test(year) || !/\p{L}{2}/u.test(fields[0])) continue
-    const cells = fields.slice(2)
-    while (cells.length && !cells[cells.length - 1].trim()) cells.pop()
-    // a stray tab adds an empty cell: drop empty cells from the right until 4 remain
-    while (cells.length > STROKES.length) {
-      const empty = cells.map((c) => !c.trim()).lastIndexOf(true)
-      if (empty < 0) break
-      cells.splice(empty, 1)
+    const hasName = /\p{L}{2}/u.test(fields[0]) && !/:\s*$/.test(fields[0].trim())
+    const yearOk = /^(\d{2}|\d{4})$/.test(year)
+    const timeCount = fields.slice(1).filter((f) => TIME_CELL.test(f)).length
+    if (!hasName || (!yearOk && timeCount < 2)) {
+      if (line.trim()) ignored.push(line.replace(/\t+/g, '  ').trim())
+      continue
     }
     const row: FormRow = {
       row: rows.length + 1,
       name: fields[0].trim().replace(/\s+/g, ' '),
-      birthYear: year.length === 2 ? 2000 + Number(year) : Number(year),
+      birthYear: yearOk ? (year.length === 2 ? 2000 + Number(year) : Number(year)) : 0,
       times: {},
-      notes: [],
+      questions: [],
       errors: [],
     }
-    if (cells.length > STROKES.length) row.errors.push(`${cells.length} Zeiten statt höchstens 4`)
+    // without a year column the times start right after the name
+    const cells = fields.slice(yearOk || !TIME_CELL.test(year) ? 2 : 1)
+    if (!yearOk) row.errors.push(year && !TIME_CELL.test(year) ? `Jahrgang «${year}» nicht lesbar` : 'Jahrgang fehlt')
+    while (cells.length && !cells[cells.length - 1].trim()) cells.pop()
+    // a stray tab adds an empty cell: drop empty cells from the right until 4 remain, and ask
+    let shifted = false
+    while (cells.length > STROKES.length) {
+      const empty = cells.map((c) => !c.trim()).lastIndexOf(true)
+      if (empty < 0) break
+      cells.splice(empty, 1)
+      shifted = true
+    }
+    if (cells.length > STROKES.length) row.errors.push(`${cells.length} Zeiten statt höchstens 4: Lagen nicht eindeutig`)
+    else if (shifted) row.questions.push('Leere Zelle zu viel in der Zeile: Zuordnung der Zeiten zu den Lagen prüfen')
     cells.slice(0, STROKES.length).forEach((cell, i) => {
-      const { time, note, error } = parseEntryTime(cell)
+      const { time, question, error } = parseEntryTime(cell)
       if (time !== null) row.times[STROKES[i]] = time
-      if (note) row.notes.push(note)
+      if (question) row.questions.push(question)
       if (error) row.errors.push(error)
     })
     rows.push(row)
   }
-  return { title, rows }
+  return { title, rows, ignored }
 }
 
 /**
  * Splits the name and takes gender and birthdate from the comparison results. The form has no
- * gender; a swimmer not found in the results gets none and the operator must choose it.
+ * gender: it is set only for a swimmer the results know with the same birth year and a single
+ * gender. Everything else is left to the operator.
  */
 export function prepareSwimmers(rows: FormRow[], persons: Person[]): FormSwimmer[] {
   const byName = new Map<string, Person[]>()
@@ -192,7 +224,7 @@ export function prepareSwimmers(rows: FormRow[], persons: Person[]): FormSwimmer
   }
   return rows.map((row) => {
     const words = row.name.split(' ')
-    // try every split into last and first name, default: the last word is the first name
+    // try every split into last and first name; the form writes "Lastname Firstname"
     let split = words.length - 1
     let found: Person[] = []
     for (let i = words.length - 1; i >= 1 && !found.length; i--) {
@@ -203,19 +235,25 @@ export function prepareSwimmers(rows: FormRow[], persons: Person[]): FormSwimmer
       }
     }
     const sameYear = found.filter((p) => p.birthYear === row.birthYear)
-    const candidates = sameYear.length ? sameYear : found
-    const genders = new Set(candidates.map((p) => p.gender))
-    const notes = [...row.notes]
-    if (found.length && !sameYear.length) {
-      notes.push(`In den Resultaten mit Jahrgang ${[...new Set(found.map((p) => p.birthYear))].join(' / ')}`)
+    const genders = new Set(sameYear.map((p) => p.gender))
+    const questions = [...row.questions]
+    const errors = [...row.errors]
+    const info: string[] = []
+    if (!found.length && words.length > 2) {
+      questions.push(`Name aus ${words.length} Wörtern: Aufteilung in Nachname und Vorname prüfen`)
     }
-    if (genders.size > 1) notes.push('In den Resultaten mit beiden Geschlechtern')
-    if (!found.length) notes.push('Nicht in den Vergleichs-Resultaten')
+    if (words.length < 2) errors.push('Nachname oder Vorname fehlt')
+    if (found.length && !sameYear.length && row.birthYear) {
+      const other = found.map((p) => `Jahrgang ${p.birthYear}, ${p.gender}`)
+      questions.push(`In den Resultaten mit ${[...new Set(other)].join(' / ')}: Jahrgang prüfen`)
+    }
+    if (genders.size > 1) info.push('In den Resultaten mit beiden Geschlechtern')
+    if (!found.length) info.push('Nicht in den Vergleichs-Resultaten')
     const birthdate =
       sameYear
         .flatMap((p) => p.entries.map((e) => e.birthdate))
         .reverse()
-        .find((d) => d.startsWith(`${row.birthYear}-`) && !d.endsWith('-01-01')) ?? `${row.birthYear}-01-01`
+        .find((d) => d.startsWith(`${row.birthYear}-`) && !d.endsWith('-01-01')) ?? (row.birthYear ? `${row.birthYear}-01-01` : '')
     return {
       row: row.row,
       lastname: words.slice(0, split).join(' '),
@@ -225,8 +263,9 @@ export function prepareSwimmers(rows: FormRow[], persons: Person[]): FormSwimmer
       gender: genders.size === 1 ? [...genders][0] : '',
       times: { ...row.times },
       known: found.length > 0,
-      notes,
-      errors: [...row.errors],
+      questions,
+      errors,
+      info,
     }
   })
 }
