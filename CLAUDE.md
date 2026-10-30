@@ -2,9 +2,21 @@
 
 A static Vue 3 + TypeScript app (Vite, no backend). It computes the yearly individual
 ranking of the BEO-Cup swimming series from SPLASH Meet Manager LENEX result files.
-`REQUIREMENTS.md` holds all domain rules (Reglement 2026 summary, scoring, matching, UI).
-**Read it first.** `LENEX.md` documents the LENEX files as SPLASH writes them (file kinds,
-structure, event ids, statuses, writing entry files that Meet Manager imports).
+
+## Read first
+
+- **`REQUIREMENTS.md`**: all domain rules (Reglement 2026 summary, scoring, matching, UI).
+  Read it before any change.
+- **`LENEX.md`**: the LENEX files as SPLASH writes them. It covers:
+  - the three file kinds (Ausschreibung, Meldungen, Resultate) and how they differ
+  - structure, dates, times, statuses and event ids
+  - writing entry files that the Meet Manager imports
+
+  Read it before touching `lenex.ts`, `lenexWriter.ts`, `entries.ts`, `wordform.ts` or the
+  real-data test.
+
+  When you learn something new about the files, add it to `LENEX.md`, for example a new
+  attribute, a SPLASH quirk or an import result. Use invented values only.
 
 Live at https://matf.github.io/beocup-yearly-ranking/ (repo `matf/beocup-yearly-ranking`).
 
@@ -47,7 +59,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
 - **DSQ:** add +3 s to the raw LENEX time, **before** picking the best 3.
 - **Status:** EXH (aK) makes the cup not count. DNS/DNF/WDR and a zero time are invalid.
 - **Kat. V/IV:** the best 3 of ≤ 4 strokes count, Fly included. **Kat. III–I:** all 4 strokes. Kat. I is ranked too.
-- **Events:** identify them by `SWIMSTYLE`, never by event number. Only 50 m individual events count.
+- **Events:** identify them by `SWIMSTYLE`, never by event number. Only 50 m individual events count. `eventid`s match between Ausschreibung and Resultate, but not in Team Manager Meldungen (LENEX.md §2).
 - **Matching:**
   - The key uses the birth year only, because `YYYY-01-01` placeholders are common.
   - The club is never in the key: codes vary (INT/INTE) and swimmers change clubs.
