@@ -51,7 +51,7 @@ export const ranking = computed(() => computeRanking(state.cups, persons.value, 
 export const cupsByDate = computed(() => [...state.cups].sort((a, b) => a.date.localeCompare(b.date)))
 
 // corrections are keyed by entry keys, so they also apply to the same cup loaded as comparison result
-const entryPersons = computed(() => buildPersons(state.entries.cups, state.corrections))
+export const entryPersons = computed(() => buildPersons(state.entries.cups, state.corrections))
 export const entryChecks = computed(() => checkEntries(state.entries.files, state.entries.cups, entryPersons.value))
 export const replacedEntryFiles = computed(() => activeEntries(state.entries.files).replaced)
 export const entryProblemCount = computed(() =>
@@ -118,10 +118,14 @@ export function resetCorrections() {
 /** Meldungen tab: entry files are checked, result files of any year become comparison data. */
 export async function addEntryFiles(files: Iterable<File>) {
   for (const file of Array.from(files)) {
+    if (/\.docx?$/i.test(file.name)) {
+      notify('error', `${file.name}: Word-Meldungen im Bereich «Word-Meldung umwandeln» laden.`)
+      continue
+    }
     try {
       const lenex = await loadLenexFile(await file.arrayBuffer(), file.name, new Date(file.lastModified).toISOString().slice(0, 19))
-      if (lenex.kind === 'empty') {
-        notify('error', `${file.name}: weder Meldungen noch Resultate (Ausschreibung?).`)
+      if (lenex.kind === 'announcement') {
+        notify('error', `${file.name}: Ausschreibung – nur als Vorlage im Bereich «Word-Meldung umwandeln» verwendbar.`)
       } else if (lenex.kind === 'entries') {
         const f = lenex.entries
         const list = state.entries.files.filter((x) => x.id !== f.id)
@@ -154,4 +158,9 @@ export function useRankingCups() {
 
 export function clearEntries() {
   state.entries = { files: [], cups: [] }
+}
+
+/** Adds an entry file generated from a Word form to the checks (replaces one of the same name). */
+export function addGeneratedEntries(file: EntryFile) {
+  state.entries.files = [...state.entries.files.filter((x) => x.id !== file.id), file]
 }

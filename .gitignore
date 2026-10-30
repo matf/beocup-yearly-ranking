@@ -11,3 +11,6 @@ meldungen/
 beocup-korrekturen-*.json
 # Reglement PDFs name a private person – keep local
 Regl_*.pdf
+# Word entry forms (names of swimmers)
+Anmeldung*.doc
+Anmeldung*.docx

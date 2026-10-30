@@ -9,6 +9,7 @@ import { clubName } from '../core/clubs'
 import type { EntryCheck, MeetCheck } from '../core/entries'
 import type { EntryFile } from '../core/types'
 import { STROKES } from '../core/types'
+import WordConvert from '../components/WordConvert.vue'
 
 const dragging = ref(false)
 const confirmClear = ref(false)
@@ -145,6 +146,8 @@ function print() {
       </button>
     </div>
   </section>
+
+  <WordConvert />
 
   <template v-if="entryChecks.length">
     <div class="row toolbar no-print">

@@ -29,7 +29,7 @@ describe('REQ 9.1 – entry files', () => {
     expect(entries.kind).toBe('entries')
     const results = parseLenexFile(lenexXml('Thun', '2026-08-22', [{ id: '1', first: 'Fiorella', last: 'Zaugglin', birthdate: '2013-02-14', gender: 'F', results: FOUR }]), 'r.lxf')
     expect(results.kind).toBe('results')
-    expect(parseLenexFile(lenexXml('Gstaad', MELDUNG_DATE, []), 'ausschreibung.lxf').kind).toBe('empty')
+    expect(parseLenexFile(lenexXml('Gstaad', MELDUNG_DATE, []), 'ausschreibung.lxf').kind).toBe('announcement')
   })
 
   it('reads the entered 50m strokes, other events and the creation time', () => {

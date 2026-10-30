@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { XMLParser } from 'fast-xml-parser'
-import type { Cup, Entry, EntryFile, EntrySwimmer, Gender, Stroke, SwimResult } from './types'
+import type { Cup, Entry, EntryFile, EntrySwimmer, Gender, MeetEvent, MeetTemplate, Stroke, SwimResult } from './types'
 import { STROKES } from './types'
 
 const ARRAY_TAGS = new Set([
@@ -52,7 +52,7 @@ type Node = any
 export type LenexFile =
   | { kind: 'results'; cup: Cup }
   | { kind: 'entries'; entries: EntryFile }
-  | { kind: 'empty' }
+  | { kind: 'announcement'; meet: MeetTemplate }
 
 interface Meet {
   node: Node
@@ -62,6 +62,8 @@ interface Meet {
   date: string
   /** individual 50m events: eventid → stroke and event gender */
   events: Map<string, { stroke: Stroke; gender: string }>
+  /** all events, for the announcement template */
+  allEvents: MeetEvent[]
 }
 
 function readMeet(doc: Node): Meet {
@@ -74,15 +76,24 @@ function readMeet(doc: Node): Meet {
   const city: string = meet.city ?? ''
 
   const events = new Map<string, { stroke: Stroke; gender: string }>()
+  const allEvents: MeetEvent[] = []
   for (const session of sessions) {
     for (const event of session.EVENTS?.EVENT ?? []) {
       const style = event.SWIMSTYLE
+      allEvents.push({
+        eventid: String(event.eventid ?? ''),
+        number: String(event.number ?? ''),
+        gender: String(event.gender ?? ''),
+        distance: String(style?.distance ?? ''),
+        relaycount: String(style?.relaycount ?? ''),
+        stroke: String(style?.stroke ?? ''),
+      })
       if (style?.distance === '50' && style?.relaycount === '1' && STROKES.includes(style.stroke)) {
         events.set(event.eventid, { stroke: style.stroke, gender: event.gender ?? '' })
       }
     }
   }
-  return { node: meet, id: `${date}-${slug(city)}`, name: String(meet.name ?? ''), city, date, events }
+  return { node: meet, id: `${date}-${slug(city)}`, name: String(meet.name ?? ''), city, date, events, allEvents }
 }
 
 function athletes(meet: Meet): { club: Node; athlete: Node }[] {
@@ -162,7 +173,10 @@ export function parseLenexFile(xml: string, fileName: string, fallbackCreated = 
     const created = String(doc.LENEX.created ?? '') || fallbackCreated
     return { kind: 'entries', entries: entryFile(meet, fileName, created) }
   }
-  return { kind: 'empty' }
+  return {
+    kind: 'announcement',
+    meet: { id: meet.id, name: meet.name, city: meet.city, date: meet.date, fileName, events: meet.allEvents },
+  }
 }
 
 export async function loadLenexFile(data: ArrayBuffer | Uint8Array, fileName: string, fallbackCreated = ''): Promise<LenexFile> {
@@ -173,7 +187,7 @@ export async function loadLenexFile(data: ArrayBuffer | Uint8Array, fileName: st
 export function parseLenex(xml: string, fileName: string): Cup {
   const file = parseLenexFile(xml, fileName)
   if (file.kind === 'entries') throw new Error('Das ist eine Meldedatei (keine Resultate). Meldungen im Tab «Meldungen» laden.')
-  if (file.kind === 'empty') throw new Error('Die Datei enthält keine Resultate (Ausschreibung?).')
+  if (file.kind === 'announcement') throw new Error('Die Datei enthält keine Resultate (Ausschreibung?).')
   return file.cup
 }
 

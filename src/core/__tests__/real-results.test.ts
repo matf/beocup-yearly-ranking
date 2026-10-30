@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { loadLenexFile } from '../lenex'
+import { loadLenexFile, parseLenexFile } from '../lenex'
 import { buildPersons, sharesCup } from '../matching'
 import { findIssues } from '../issues'
 import { categoryForAge, computeRanking, effectiveTime, isValidResult, scoreEntry } from '../scoring'
@@ -23,8 +23,10 @@ import { normalizeName, similarity } from '../normalize'
 import { formatTime } from '../format'
 import { CLUBS } from '../clubs'
 import { activeEntries, checkEntries } from '../entries'
+import { parseWordForm, prepareSwimmers, readWordText } from '../wordform'
+import { buildEntryLenex } from '../lenexWriter'
 import { autoKey } from '../matching'
-import type { Cup, Entry, EntryFile, Stroke } from '../types'
+import type { Cup, Entry, EntryFile, Gender, MeetTemplate, Stroke } from '../types'
 import { STROKES } from '../types'
 
 const DIR = resolve(__dirname, '../../../results')
@@ -380,7 +382,7 @@ describe.skipIf(allLxf.length === 0)('real entry files (Meldungen)', () => {
     expect(entryFiles.length).toBeGreaterThan(40)
     for (const [f, kind] of kinds) {
       if (/\/meldungen\//i.test(f)) expect(kind, relative(DIR, f)).toBe('entries')
-      if (/ausschreibung/i.test(basename(f))) expect(kind, relative(DIR, f)).toBe('empty')
+      if (/ausschreibung/i.test(basename(f))) expect(kind, relative(DIR, f)).toBe('announcement')
       if (/^resultate/i.test(basename(f))) expect(kind, relative(DIR, f)).toBe('results')
     }
     expect(entryFiles.every((f) => f.swimmers.length > 0 && f.year >= 2023)).toBe(true)
@@ -422,5 +424,54 @@ describe.skipIf(allLxf.length === 0)('real entry files (Meldungen)', () => {
     const errors = checks.filter((c) => c.findings.some((f) => f.severity === 'error'))
     expect(errors.length).toBeGreaterThan(0)
     expect(errors.length / checks.length).toBeLessThan(0.1)
+  })
+})
+
+const wordForms = [DIR, resolve(__dirname, '../../../meldungen')].flatMap(walkAll).filter((f) => /^anmeldung.*\.docx?$/i.test(basename(f)))
+
+describe.skipIf(wordForms.length === 0)('real Word entry forms (Gstaad)', () => {
+  const cups: Cup[] = []
+  const announcements: MeetTemplate[] = []
+
+  beforeAll(async () => {
+    for (const f of allLxf) {
+      const file = await loadLenexFile(readFileSync(f), basename(f))
+      if (file.kind === 'results' && !cups.some((c) => c.id === file.cup.id)) cups.push(file.cup)
+      if (file.kind === 'announcement') announcements.push(file.meet)
+    }
+  })
+
+  it('reads every swimmer line with 3 or 4 readable strokes', async () => {
+    let rows = 0
+    for (const f of wordForms) {
+      const form = parseWordForm(await readWordText(readFileSync(f)))
+      expect(form.rows.length, relative(DIR, f)).toBeGreaterThan(0)
+      for (const r of form.rows) {
+        expect(r.errors, relative(DIR, f)).toEqual([])
+        expect(Object.keys(r.times).length).toBeGreaterThanOrEqual(3)
+        expect(r.birthYear).toBeGreaterThan(2000)
+      }
+      rows += form.rows.length
+    }
+    expect(rows).toBeGreaterThan(50)
+  })
+
+  it('finds gender and name split of nearly every swimmer in the results and writes a readable entry file', async () => {
+    const persons = buildPersons(cups, emptyCorrections())
+    const meet = announcements.find((m) => m.city === 'Gstaad') ?? announcements[0]
+    let total = 0
+    let known = 0
+    for (const f of wordForms) {
+      const swimmers = prepareSwimmers(parseWordForm(await readWordText(readFileSync(f))).rows, persons)
+      total += swimmers.length
+      known += swimmers.filter((s) => s.gender).length
+      const xml = buildEntryLenex(meet, { code: 'SAAN', name: 'Schulsport Saanenland' }, swimmers.map((s) => ({ ...s, gender: (s.gender || 'F') as Gender })), '')
+      const file = parseLenexFile(xml, basename(f))
+      expect(file.kind).toBe('entries')
+      if (file.kind !== 'entries') continue
+      expect(file.entries.swimmers.map((s) => s.strokes.length)).toEqual(swimmers.map((s) => Object.keys(s.times).length))
+      expect(file.entries.swimmers.every((s) => s.wrongGender.length === 0)).toBe(true)
+    }
+    expect(known / total).toBeGreaterThan(0.9)
   })
 })

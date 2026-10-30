@@ -108,3 +108,25 @@ export interface EntryFile {
   fileName: string
   swimmers: EntrySwimmer[]
 }
+
+/** An event of a meet as announced (Ausschreibung), used as template for generated entry files. */
+export interface MeetEvent {
+  eventid: string
+  number: string
+  /** M, F, or empty for mixed events */
+  gender: string
+  distance: string
+  relaycount: string
+  stroke: string
+}
+
+/** Meet data from an announcement file. */
+export interface MeetTemplate {
+  /** `${date}-${city}` slug, the same as the cup's id */
+  id: string
+  name: string
+  city: string
+  date: string
+  fileName: string
+  events: MeetEvent[]
+}

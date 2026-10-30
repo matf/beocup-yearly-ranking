@@ -1,3 +1,4 @@
+import CFB from 'cfb'
 import JSZip from 'jszip'
 import type { Cup, EntryFile, Gender, Stroke } from '../types'
 import { parseLenex, parseLenexFile } from '../lenex'
@@ -123,4 +124,53 @@ export const FOUR = { FLY: '40.00', BACK: '41.00', BREAST: '42.00', FREE: '35.00
 
 export function corrections() {
   return emptyCorrections()
+}
+
+/**
+ * A minimal Word 97 .doc with the given text: a WordDocument stream (FIB + text) and a table
+ * stream with the piece table. The first half is stored as 8-bit text, the rest as UTF-16,
+ * as Word does after edits.
+ */
+export function wordDoc(text: string): Uint8Array {
+  const split = Math.floor(text.length / 2)
+  const cp1252 = (c: string) => (c === '–' ? 0x96 : c.charCodeAt(0))
+  const first = Uint8Array.from([...text.slice(0, split)].map(cp1252))
+  const second = new Uint8Array((text.length - split) * 2)
+  for (let i = split; i < text.length; i++) new DataView(second.buffer).setUint16((i - split) * 2, text.charCodeAt(i), true)
+  const at8 = 0x400
+  const at16 = at8 + first.length + (first.length % 2)
+  const word = new Uint8Array(at16 + second.length)
+  const w = new DataView(word.buffer)
+  w.setUint16(0, 0xa5ec, true)
+  w.setUint16(0x0a, 0x0200, true) // text in 1Table
+  w.setUint32(0x4c, text.length, true) // ccpText
+  word.set(first, at8)
+  word.set(second, at16)
+  // CLX: one property modifier (skipped), then the piece table with two pieces
+  const table = new Uint8Array(5 + 5 + 3 * 4 + 2 * 8)
+  const t = new DataView(table.buffer)
+  table[0] = 0x01
+  t.setUint16(1, 2, true)
+  table[5] = 0x02
+  t.setUint32(6, 3 * 4 + 2 * 8, true)
+  t.setUint32(10, 0, true)
+  t.setUint32(14, split, true)
+  t.setUint32(18, text.length, true)
+  t.setUint32(22 + 2, (at8 * 2) | 0x40000000, true)
+  t.setUint32(30 + 2, at16, true)
+  w.setUint32(0x01a2, 0, true) // fcClx
+  w.setUint32(0x01a6, table.length, true)
+  const cfb = CFB.utils.cfb_new()
+  CFB.utils.cfb_add(cfb, 'WordDocument', word)
+  CFB.utils.cfb_add(cfb, '1Table', table)
+  return new Uint8Array(CFB.write(cfb, { type: 'array' }) as ArrayLike<number>)
+}
+
+/** A .docx with the given lines as paragraphs, tabs as <w:tab/>. */
+export async function wordDocx(lines: string[]): Promise<Uint8Array> {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  const p = (l: string) => `<w:p><w:r>${l.split('\t').map((part) => `<w:t xml:space="preserve">${esc(part)}</w:t>`).join('<w:tab/>')}</w:r></w:p>`
+  const zip = new JSZip()
+  zip.file('word/document.xml', `<?xml version="1.0"?><w:document xmlns:w="w"><w:body>${lines.map(p).join('')}</w:body></w:document>`)
+  return zip.generateAsync({ type: 'uint8array' })
 }

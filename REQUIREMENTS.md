@@ -48,7 +48,8 @@ parts matter for this app:
 - SPLASH uses the same format for three kinds of file, told apart by content:
   - result file: athletes with `RESULT` elements
   - entry file (Meldung, from SPLASH Team Manager): athletes with `ENTRY` elements only
-  - announcement (Ausschreibung): no athletes
+  - announcement (Ausschreibung): no athletes; it serves as template for entry files written
+    by the app (9.4)
 
   The Cups tab accepts only result files and names the kind of a rejected file.
 
@@ -208,6 +209,8 @@ The exported file contains names, so it must never be committed.
   - that every entry of a cup resembling a swimmer marked "not started" there is reported as a
     suspicious pair
   - matching, issue detection and the ranking
+  - the Word forms: every swimmer line is read with 3–4 readable strokes, over 90 % get their
+    gender from the results, and the generated entry file reads back with the same strokes
   - the entry files: each file in a `Meldungen` folder is recognised as one, newer files replace
     older ones, nearly every swimmer entered for a past cup is found in that cup's results, and
     fewer than 10 % of the entries have errors
@@ -262,3 +265,36 @@ The category is computed from the cup year, as in section 4. The operator's corr
   (✓ entered, – missing, · Fly not required) and the findings.
 - Filters: only errors and warnings (default), only errors, all; search by name or club.
 - The tab shows the number of swimmers with an error or warning. The list can be printed.
+
+### 9.4 Word entry forms (Gstaad)
+Gstaad has no Team Manager and enters its swimmers with a Word form. The Meldungen tab turns
+the form into a LENEX entry file for the import into the Meet Manager. Everything runs in the
+browser.
+
+- **Input:** two files uploaded explicitly in the section «Word-Meldung umwandeln»:
+  1. the cup's announcement (`.lxf`): meet name, city, date and all events with their ids and
+     numbers. Other files are rejected there.
+  2. the Word form (`.doc` Word 97–2003, or `.docx`)
+- **Form:** one line per swimmer, `Lastname Firstname <tab> YY <tab> Fly <tab> Back <tab>
+  Breast <tab> Free`. Title, header and relay lines are ignored; **relays are not converted**.
+  - The year has two digits (`09` = 2009).
+  - `---`, `x` and empty cells: not entered. A stray tab (an empty cell beyond the fourth) is
+    dropped.
+  - Times like `37.40`, `47.5`, `1:04.3`; typos like `42.18j` or `52:00` (= 52.00) are read
+    with a note; unreadable times are errors.
+- **Prepared from the comparison results** (section 9.1), because the form has no gender or
+  birthdate:
+  - The name is split where last and first name match a person in the results, otherwise
+    before the last word.
+  - Gender from the results. Unknown swimmers, or a name found with both genders, get no
+    gender: the operator must choose it.
+  - Birthdate: the real one from the results with the same birth year, otherwise `YYYY-01-01`.
+  - A birth year that differs from the results is noted; the form's year is kept.
+- **Editing:** name, birth year, gender and the times can be edited, rows removed. The download
+  is possible only when every row has a gender, a name and readable times.
+- **Output:** `Meldung SAAN <meet>.lxf`, a zipped LENEX like a Team Manager export:
+  - club **SAAN / Schulsport Saanenland**, as in the results
+  - all events of the announcement; one `ENTRY` with entry time per entered 50 m stroke, using
+    the announcement's event id for the stroke and the swimmer's gender
+  - the generated file is added to the checks (9.2) at once
+- Whether the Meet Manager imports the file must be verified on the first real import.

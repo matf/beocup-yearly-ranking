@@ -33,11 +33,13 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - `scoring.ts`: categories, the per-cup outcome (`ok|absent|withdrawn|exhibition|incomplete`) and the ranking.
   - `format.ts`: German labels and times.
   - `clubs.ts`: the six clubs; maps file club codes to the current club name for display.
+  - `wordform.ts`: reads Word entry forms (`.doc` via `cfb` + the Word 97 piece table, `.docx` via JSZip) and prepares the swimmers.
+  - `lenexWriter.ts`: writes a LENEX entry file from an announcement template.
   - `entries.ts`: the Meldungen checks (REQUIREMENTS §9): newest file per cup and club, disciplines per category, cross-check against the comparison results.
   - `__tests__/`: one `describe` per requirement. `fixtures.ts` builds synthetic LENEX files. `real-results.test.ts` is the local real-data check.
 - `src/store.ts`: reactive state. Cups, corrections and the Meldungen tab's files live in `localStorage`; persons, issues, ranking and entry checks are `computed`.
 - `src/views/`: the tabs Cups, Prüfen, Schwimmer:innen, Rangliste, Druck, Meldungen (`EntriesView`).
-- `src/components/`: shared components.
+- `src/components/`: shared components; `WordConvert.vue` is the Word form converter of the Meldungen tab.
 
 ## Easy to get wrong
 
@@ -61,6 +63,10 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - The Meldungen tab has its own state (`state.entries`: entry files and comparison cups of any year). It never feeds the ranking.
   - Kat. V/IV must enter Back, Breast and Free; Fly is optional. Fly in place of one of them is a warning, not an error.
   - The newest file per cup and club wins, by `LENEX created`, then load order. Compare clubs by `clubName()`, not by code.
+- **Word forms (Gstaad):**
+  - No gender and no birthdate in the form: both come from the comparison results, otherwise the operator chooses.
+  - The Ausschreibung is uploaded explicitly in the converter; event ids and numbers come from it. Club is always SAAN.
+  - Relays are not converted. Tests build `.doc`/`.docx` files synthetically (`fixtures.ts`), never commit real forms.
 - **Testing in a browser:** reset the file `<input>` only after copying its `FileList`, because it is live.
 
 ## Personal data – strict
@@ -73,7 +79,7 @@ TypeScript is pinned to ~5.9: vue-tsc does not support TypeScript 7 yet.
   - Use fictional names and dates.
   - Before using a value, check it does not occur in the real files. Even a single real first name with a real birthdate is personal data.
   - The real-data test asserts only counts and structure.
-- Before pushing, scan the tracked files against all names and birthdates extracted from `results/**/*.lxf` and `meldungen/**/*.lxf`.
+- Before pushing, scan the tracked files against all names and birthdates extracted from `results/**/*.lxf` and `meldungen/**/*.lxf`, and the names in the Word forms.
 
 ## Conventions
 
