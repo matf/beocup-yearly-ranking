@@ -3,7 +3,8 @@
 A static Vue 3 + TypeScript app (Vite, no backend). It computes the yearly individual
 ranking of the BEO-Cup swimming series from SPLASH Meet Manager LENEX result files.
 `REQUIREMENTS.md` holds all domain rules (Reglement 2026 summary, scoring, matching, UI).
-**Read it first.**
+**Read it first.** `LENEX.md` documents the LENEX files as SPLASH writes them (file kinds,
+structure, event ids, statuses, writing entry files that Meet Manager imports).
 
 Live at https://matf.github.io/beocup-yearly-ranking/ (repo `matf/beocup-yearly-ranking`).
 
